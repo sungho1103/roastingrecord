@@ -51,7 +51,7 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
           <tbody className="divide-y divide-gray-200">
             {sortedRecords.map((record, index) => (
               <tr 
-                key={record.id + record.createdAt}
+                key={record.createdAt}
                 className={`${
                   index % 2 === 0 ? 'bg-white' : 'bg-amber-50'
                 } hover:bg-yellow-100 transition-colors`}
