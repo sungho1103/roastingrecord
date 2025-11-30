@@ -209,7 +209,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
     const dateStr = new Date().toISOString().split('T')[0];
     
     const record: RoastingRecord = {
-      id: recordId || editRecord?.id || '', // 빈 문자열로 시작
+      id: recordId || editRecord?.id || `${Date.now()}`, // recordId를 최우선으로
       date: dateStr,
       beanName,
       beanOrigin: beanOrigin || undefined,

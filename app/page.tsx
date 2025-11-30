@@ -90,12 +90,30 @@ export default function Home() {
 
       if (editingRecord) {
         // 수정
-        const { error } = await supabase
-          .from('roasting_records')
-          .update(supabaseRecord)
-          .eq('id', record.id);
+        // ID가 변경되었는지 확인
+        if (editingRecord.id !== record.id) {
+          // ID가 변경된 경우: 기존 레코드 삭제 후 새로 추가
+          const { error: deleteError } = await supabase
+            .from('roasting_records')
+            .delete()
+            .eq('id', editingRecord.id);
 
-        if (error) throw error;
+          if (deleteError) throw deleteError;
+
+          const { error: insertError } = await supabase
+            .from('roasting_records')
+            .insert([supabaseRecord]);
+
+          if (insertError) throw insertError;
+        } else {
+          // ID가 같은 경우: 일반 업데이트
+          const { error } = await supabase
+            .from('roasting_records')
+            .update(supabaseRecord)
+            .eq('id', record.id);
+
+          if (error) throw error;
+        }
       } else {
         // 새로 추가
         const { error } = await supabase
