@@ -5,7 +5,6 @@ import { RoastingRecord } from './types';
 import RoastingRecorder from './components/RoastingRecorder';
 import RoastingTable from './components/RoastingTable';
 import RecordDetail from './components/RecordDetail';
-import { supabase } from '../lib/supabase';
 
 export default function Home() {
   const [records, setRecords] = useState<RoastingRecord[]>([]);
@@ -13,106 +12,32 @@ export default function Home() {
   const [editingRecord, setEditingRecord] = useState<RoastingRecord | null>(null);
   const [viewingRecord, setViewingRecord] = useState<RoastingRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
 
-  // Supabase에서 데이터 로드
+  // 로컬 스토리지에서 데이터 로드
   useEffect(() => {
-    fetchRecords();
+    const savedRecords = localStorage.getItem('roasting-records');
+    if (savedRecords) {
+      setRecords(JSON.parse(savedRecords));
+    }
   }, []);
 
-  const fetchRecords = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('roasting_records')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-
-      if (data) {
-        // Supabase 형식을 앱 형식으로 변환
-        const formattedRecords: RoastingRecord[] = data.map((record: any) => ({
-          id: record.id || '',
-          date: record.date,
-          beanName: record.bean_name,
-          beanOrigin: record.bean_origin,
-          greenWeight: parseFloat(record.green_weight),
-          roastedWeight: record.roasted_weight ? parseFloat(record.roasted_weight) : undefined,
-          yield: record.yield ? parseFloat(record.yield) : undefined,
-          fan1: record.fan1 ? parseFloat(record.fan1) : undefined,
-          heater: record.heater ? parseFloat(record.heater) : undefined,
-          fan2: record.fan2 ? parseFloat(record.fan2) : undefined,
-          temps: record.temps || {},
-          maillardTime: record.maillard_time,
-          developTime: record.develop_time,
-          dtr: record.dtr ? parseFloat(record.dtr) : undefined,
-          totalTime: record.total_time,
-          notes: record.notes,
-          cuppingNotes: record.cupping_notes,
-          createdAt: record.created_at,
-          updatedAt: record.updated_at,
-        }));
-        setRecords(formattedRecords);
-      }
-    } catch (error) {
-      console.error('Error fetching records:', error);
-      alert('데이터를 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
+  // 데이터 변경 시 로컬 스토리지에 저장
+  useEffect(() => {
+    if (records.length > 0) {
+      localStorage.setItem('roasting-records', JSON.stringify(records));
     }
-  };
+  }, [records]);
 
-  const handleSave = async (record: RoastingRecord) => {
-    try {
-      // 앱 형식을 Supabase 형식으로 변환
-      const supabaseRecord = {
-        id: record.id || `${Date.now()}`,
-        date: record.date,
-        bean_name: record.beanName,
-        bean_origin: record.beanOrigin,
-        green_weight: record.greenWeight,
-        roasted_weight: record.roastedWeight,
-        yield: record.yield,
-        fan1: record.fan1,
-        heater: record.heater,
-        fan2: record.fan2,
-        temps: record.temps,
-        maillard_time: record.maillardTime,
-        develop_time: record.developTime,
-        dtr: record.dtr,
-        total_time: record.totalTime,
-        notes: record.notes,
-        cupping_notes: record.cuppingNotes,
-        created_at: record.createdAt,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (editingRecord) {
-        // 수정
-        const { error } = await supabase
-          .from('roasting_records')
-          .update(supabaseRecord)
-          .eq('id', record.id);
-
-        if (error) throw error;
-      } else {
-        // 새로 추가
-        const { error } = await supabase
-          .from('roasting_records')
-          .insert([supabaseRecord]);
-
-        if (error) throw error;
-      }
-
-      // 데이터 다시 로드
-      await fetchRecords();
-      setView('list');
-      setEditingRecord(null);
-    } catch (error) {
-      console.error('Error saving record:', error);
-      alert('저장 중 오류가 발생했습니다.');
+  const handleSave = (record: RoastingRecord) => {
+    if (editingRecord) {
+      // 수정
+      setRecords(prev => prev.map(r => r.id === record.id ? record : r));
+    } else {
+      // 새로 추가
+      setRecords(prev => [...prev, record]);
     }
+    setView('list');
+    setEditingRecord(null);
   };
 
   const handleEdit = (record: RoastingRecord) => {
@@ -121,21 +46,8 @@ export default function Home() {
     setViewingRecord(null);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('roasting_records')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // 데이터 다시 로드
-      await fetchRecords();
-    } catch (error) {
-      console.error('Error deleting record:', error);
-      alert('삭제 중 오류가 발생했습니다.');
-    }
+  const handleDelete = (id: string) => {
+    setRecords(prev => prev.filter(r => r.id !== id));
   };
 
   const handleCancel = () => {
@@ -186,14 +98,7 @@ export default function Home() {
 
       {/* 메인 콘텐츠 */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="text-6xl mb-4">☕</div>
-              <p className="text-2xl font-bold text-gray-700">데이터를 불러오는 중...</p>
-            </div>
-          </div>
-        ) : view === 'list' ? (
+        {view === 'list' && (
           <div className="space-y-6">
             {/* 검색 바 */}
             <div className="bg-white rounded-2xl shadow-xl p-5 border-2 border-amber-300">
@@ -256,13 +161,15 @@ export default function Home() {
               onDelete={handleDelete}
             />
           </div>
-        ) : (view === 'new' || view === 'edit') ? (
+        )}
+
+        {(view === 'new' || view === 'edit') && (
           <RoastingRecorder
             onSave={handleSave}
             onCancel={handleCancel}
             editRecord={editingRecord}
           />
-        ) : null}
+        )}
       </main>
 
       {/* 상세 보기 모달 */}
