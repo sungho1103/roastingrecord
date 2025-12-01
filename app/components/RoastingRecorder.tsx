@@ -68,7 +68,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
       startTimeRef.current = Date.now() - elapsedTime * 1000;
       intervalRef.current = setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
-      }, 100);
+      }, 1000); // 1초마다 업데이트
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
