@@ -1,136 +1,220 @@
-'use client';
+"use client"
 
-import { RoastingRecord } from '../types';
+import type React from "react"
+
+import type { RoastingRecord } from "../types"
+import { useState, useRef } from "react"
 
 interface RoastingTableProps {
-  records: RoastingRecord[];
-  onEdit: (record: RoastingRecord) => void;
-  onDelete: (id: string) => void;
+  records: RoastingRecord[]
+  onEdit: (record: RoastingRecord) => void
+  onDelete: (id: string) => void
 }
 
 export default function RoastingTable({ records, onEdit, onDelete }: RoastingTableProps) {
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [scrollLeft, setScrollLeft] = useState(0)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return
+    setIsDragging(true)
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft)
+    setScrollLeft(scrollContainerRef.current.scrollLeft)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return
+    e.preventDefault()
+    const x = e.pageX - scrollContainerRef.current.offsetLeft
+    const walk = (x - startX) * 2 // Scroll speed multiplier
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleMouseLeave = () => {
+    setIsDragging(false)
+  }
+
   const sortedRecords = [...records].sort((a, b) => {
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
-  });
+    const dateTimeA = new Date(`${a.date} ${a.time || "00:00:00"}`).getTime()
+    const dateTimeB = new Date(`${b.date} ${b.time || "00:00:00"}`).getTime()
+    return dateTimeB - dateTimeA
+  })
+
+  const toggleRecordDetails = (recordId: string) => {
+    setSelectedRecordId(selectedRecordId === recordId ? null : recordId)
+  }
 
   if (records.length === 0) {
     return (
-      <div className="text-center py-16 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg border-2 border-amber-200">
-        <div className="text-6xl mb-4">☕</div>
-        <p className="text-2xl font-bold text-gray-700 mb-2">아직 로스팅 기록이 없습니다</p>
-        <p className="text-lg text-gray-500">새 로스팅 기록을 추가해보세요!</p>
+      <div className="text-center py-24 bg-white rounded-2xl shadow-lg border border-gray-200">
+        <div className="text-7xl mb-6 animate-bounce">☕</div>
+        <p className="text-2xl font-bold text-gray-800 mb-3">아직 로스팅 기록이 없습니다</p>
+        <p className="text-lg font-medium text-gray-600">새 로스팅 기록을 추가해보세요!</p>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-amber-300">
-      <div className="overflow-x-auto">
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+      <div
+        ref={scrollContainerRef}
+        className="overflow-x-auto max-h-[600px]"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: isDragging ? "grabbing" : "grab" }}
+      >
         <table className="w-full">
-          <thead className="bg-gradient-to-r from-amber-600 to-orange-700">
+          <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-4 text-left text-sm font-black text-white">ID</th>
-              <th className="px-4 py-4 text-left text-sm font-black text-white">날짜</th>
-              <th className="px-4 py-4 text-left text-sm font-black text-white">원두명</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">FAN1</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">Heater</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">FAN2</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">100°</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">130°</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">150°</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">180°</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">183°</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">배출</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">메일라드</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">디벨롭</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">DTR</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">전체시간</th>
-              <th className="px-4 py-4 text-center text-sm font-black text-white">액션</th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[100px]">
+                메모
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[120px]">
+                날짜/시간
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[130px]">
+                원두명
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+                F1
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+                Ht
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+                F2
+              </th>
+              <th className="px-3 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[65px]">
+                100°
+              </th>
+              <th className="px-3 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[65px]">
+                130°
+              </th>
+              <th className="px-3 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[65px]">
+                150°
+              </th>
+              <th className="px-3 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[65px]">
+                180°
+              </th>
+              <th className="px-3 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[65px]">
+                183°
+              </th>
+              <th className="px-3 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[65px]">
+                배출
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[80px]">
+                메일라드
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[80px]">
+                발현
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[70px]">
+                DTR
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[80px]">
+                전체시간
+              </th>
+              <th className="px-5 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[140px]">
+                액션
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {sortedRecords.map((record, index) => (
-              <tr 
-                key={record.createdAt}
-                className={`${
-                  index % 2 === 0 ? 'bg-white' : 'bg-amber-50'
-                } hover:bg-yellow-100 transition-colors`}
-              >
-                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-800">
-                  {record.id || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm font-semibold text-gray-700 whitespace-nowrap">
-                  {record.date}
-                </td>
-                <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                  {record.beanName}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-semibold text-blue-700">
-                  {record.fan1 || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-semibold text-red-700">
-                  {record.heater || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-semibold text-purple-700">
-                  {record.fan2 || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono text-gray-700">
-                  {record.temps['100'] || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono text-gray-700">
-                  {record.temps['130'] || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono text-gray-700">
-                  {record.temps['150'] || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono text-gray-700">
-                  {record.temps['180'] || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono text-gray-700">
-                  {record.temps['183'] || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono font-bold text-orange-700">
-                  {record.temps['end'] || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono font-semibold text-amber-700 bg-amber-50">
-                  {record.maillardTime || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono font-semibold text-orange-700 bg-orange-50">
-                  {record.developTime || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-semibold text-red-700 bg-red-50">
-                  {record.dtr ? `${record.dtr}%` : '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-center font-mono font-bold text-purple-700 bg-purple-50">
-                  {record.totalTime || '-'}
-                </td>
-                <td className="px-4 py-3 text-center whitespace-nowrap">
-                  <div className="flex gap-2 justify-center">
+              <>
+                <tr
+                  key={record.id}
+                  className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors`}
+                >
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.memo || "-"}</td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">
+                    <div>{record.date}</div>
+                    {record.time && <div className="text-sm text-gray-500">{record.time}</div>}
+                  </td>
+                  <td className="px-5 py-4 text-base font-semibold text-gray-800 min-w-[130px]">
                     <button
-                      onClick={() => onEdit(record)}
-                      className="px-3 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-semibold text-xs transition-all"
-                      title="수정"
+                      onClick={() => toggleRecordDetails(record.id)}
+                      className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                      type="button"
                     >
-                      ✏️
+                      {record.beanName}
                     </button>
-                    <button
-                      onClick={() => {
-                        if (confirm('이 기록을 삭제하시겠습니까?')) {
-                          onDelete(record.id);
-                        }
-                      }}
-                      className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-xs transition-all"
-                      title="삭제"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.fan1 || "-"}</td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.heater || "-"}</td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.fan2 || "-"}</td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-700">{record.temps["100"] || "-"}</td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-700">{record.temps["130"] || "-"}</td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-700">{record.temps["150"] || "-"}</td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-700">{record.temps["180"] || "-"}</td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-700">{record.temps["183"] || "-"}</td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-700">{record.temps["end"] || "-"}</td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.maillardTime || "-"}</td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.developTime || "-"}</td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">
+                    {record.dtr ? `${record.dtr}%` : "-"}
+                  </td>
+                  <td className="px-5 py-4 text-base font-medium text-gray-700">{record.totalTime || "-"}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => onEdit(record)}
+                        className="px-5 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm transition-all shadow-sm transform hover:scale-105"
+                        title="수정"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm("이 기록을 삭제하시겠습니까?")) {
+                            onDelete(record.id)
+                          }
+                        }}
+                        className="px-5 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-sm transition-all shadow-sm transform hover:scale-105"
+                        title="삭제"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {selectedRecordId === record.id && (
+                  <tr key={`${record.id}-details`} className="bg-blue-50">
+                    <td colSpan={17} className="px-5 py-6">
+                      <div className="space-y-4">
+                        {record.notes && (
+                          <div className="bg-white p-4 rounded-lg border border-gray-300">
+                            <h4 className="font-bold text-gray-800 mb-2">노트 기록:</h4>
+                            <p className="text-gray-700 whitespace-pre-wrap">{record.notes}</p>
+                          </div>
+                        )}
+                        {record.cuppingNotes && (
+                          <div className="bg-white p-4 rounded-lg border border-gray-300">
+                            <h4 className="font-bold text-gray-800 mb-2">테이스팅 기록:</h4>
+                            <p className="text-gray-700 whitespace-pre-wrap">{record.cuppingNotes}</p>
+                          </div>
+                        )}
+                        {!record.notes && !record.cuppingNotes && (
+                          <div className="text-gray-500 text-center py-2">노트 기록이 없습니다.</div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>
       </div>
     </div>
-  );
+  )
 }

@@ -1,78 +1,94 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { RoastingRecord } from './types';
-import RoastingRecorder from './components/RoastingRecorder';
-import RoastingTable from './components/RoastingTable';
-import RecordDetail from './components/RecordDetail';
-import { supabase } from '../lib/supabase';
+import { useState, useEffect } from "react"
+import type { RoastingRecord } from "./types"
+import RoastingRecorder from "./components/RoastingRecorder"
+import RoastingTable from "./components/RoastingTable"
+import RecordDetail from "./components/RecordDetail"
+import { supabase, isSupabaseConfigured } from "../lib/supabase"
 
 export default function Home() {
-  const [records, setRecords] = useState<RoastingRecord[]>([]);
-  const [view, setView] = useState<'list' | 'new' | 'edit'>('list');
-  const [editingRecord, setEditingRecord] = useState<RoastingRecord | null>(null);
-  const [viewingRecord, setViewingRecord] = useState<RoastingRecord | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [records, setRecords] = useState<RoastingRecord[]>([])
+  const [view, setView] = useState<"list" | "new" | "edit">("list")
+  const [editingRecord, setEditingRecord] = useState<RoastingRecord | null>(null)
+  const [viewingRecord, setViewingRecord] = useState<RoastingRecord | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
+  const [presets, setPresets] = useState({
+    1: { fan1: "75", heater: "90", fan2: "2.5" },
+    2: { fan1: "80", heater: "85", fan2: "3.0" },
+    3: { fan1: "70", heater: "95", fan2: "2.0" },
+  })
 
-  // Supabase에서 데이터 로드
   useEffect(() => {
-    fetchRecords();
-  }, []);
+    fetchRecords()
+  }, [])
 
   const fetchRecords = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('roasting_records')
-        .select('*')
-        .order('date', { ascending: false });
+    if (!isSupabaseConfigured) {
+      console.log("[v0] Supabase not configured, using empty records")
+      setLoading(false)
+      return
+    }
 
-      if (error) throw error;
+    try {
+      setLoading(true)
+      const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
+
+      if (error) throw error
 
       if (data) {
-        // Supabase 형식을 앱 형식으로 변환
         const formattedRecords: RoastingRecord[] = data.map((record: any) => ({
-          id: record.id || '',
+          id: record.id || "",
           date: record.date,
           time: record.time,
           beanName: record.bean_name,
           beanOrigin: record.bean_origin,
-          greenWeight: parseFloat(record.green_weight),
-          roastedWeight: record.roasted_weight ? parseFloat(record.roasted_weight) : undefined,
-          yield: record.yield ? parseFloat(record.yield) : undefined,
-          fan1: record.fan1 ? parseFloat(record.fan1) : undefined,
-          heater: record.heater ? parseFloat(record.heater) : undefined,
-          fan2: record.fan2 ? parseFloat(record.fan2) : undefined,
+          greenWeight: Number.parseFloat(record.green_weight),
+          roastedWeight: record.roasted_weight ? Number.parseFloat(record.roasted_weight) : undefined,
+          yield: record.yield ? Number.parseFloat(record.yield) : undefined,
+          fan1: record.fan1 ? Number.parseFloat(record.fan1) : undefined,
+          heater: record.heater ? Number.parseFloat(record.heater) : undefined,
+          fan2: record.fan2 ? Number.parseFloat(record.fan2) : undefined,
           temps: record.temps || {},
           maillardTime: record.maillard_time,
           developTime: record.develop_time,
-          dtr: record.dtr ? parseFloat(record.dtr) : undefined,
+          dtr: record.dtr ? Number.parseFloat(record.dtr) : undefined,
           totalTime: record.total_time,
           notes: record.notes,
           cuppingNotes: record.cupping_notes,
           createdAt: record.created_at,
           updatedAt: record.updated_at,
-        }));
-        setRecords(formattedRecords);
+        }))
+        setRecords(formattedRecords)
       }
     } catch (error) {
-      console.error('Error fetching records:', error);
-      alert('데이터를 불러오는 중 오류가 발생했습니다.');
+      console.error("Error fetching records:", error)
+      if (isSupabaseConfigured) {
+        alert("데이터를 불러오는 중 오류가 발생했습니다.")
+      }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleSave = async (record: RoastingRecord) => {
+    if (!isSupabaseConfigured) {
+      alert(
+        "데이터베이스가 연결되지 않았습니다.\n\n왼쪽 사이드바의 'Vars' 섹션에서 다음 환경 변수를 설정해주세요:\n- NEXT_PUBLIC_SUPABASE_URL\n- NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      )
+      return
+    }
+
     try {
-      // ID가 없으면 저장하지 않음 (사용자가 직접 입력하도록)
-      if (!record.id) {
-        alert('ID를 입력해주세요.');
-        return;
+      if (!record.id || record.id.trim() === "") {
+        const now = new Date()
+        const dateStr = now.toISOString().split("T")[0].replace(/-/g, "")
+        const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, "")
+        record.id = `${dateStr}-${timeStr}`
       }
 
-      // 앱 형식을 Supabase 형식으로 변환
       const supabaseRecord = {
         id: record.id,
         date: record.date,
@@ -94,211 +110,285 @@ export default function Home() {
         cupping_notes: record.cuppingNotes,
         created_at: record.createdAt,
         updated_at: new Date().toISOString(),
-      };
-
-      if (editingRecord) {
-        // 수정
-        // ID가 변경되었는지 확인
-        if (editingRecord.id !== record.id) {
-          // ID가 변경된 경우: 기존 레코드 삭제 후 새로 추가
-          const { error: deleteError } = await supabase
-            .from('roasting_records')
-            .delete()
-            .eq('id', editingRecord.id);
-
-          if (deleteError) throw deleteError;
-
-          const { error: insertError } = await supabase
-            .from('roasting_records')
-            .insert([supabaseRecord]);
-
-          if (insertError) throw insertError;
-        } else {
-          // ID가 같은 경우: 일반 업데이트
-          const { error } = await supabase
-            .from('roasting_records')
-            .update(supabaseRecord)
-            .eq('id', record.id);
-
-          if (error) throw error;
-        }
-      } else {
-        // 새로 추가
-        const { error } = await supabase
-          .from('roasting_records')
-          .insert([supabaseRecord]);
-
-        if (error) throw error;
       }
 
-      // 데이터 다시 로드
-      await fetchRecords();
-      setView('list');
-      setEditingRecord(null);
+      if (editingRecord) {
+        if (editingRecord.id !== record.id) {
+          const { error: deleteError } = await supabase.from("roasting_records").delete().eq("id", editingRecord.id)
+
+          if (deleteError) throw deleteError
+
+          const { error: insertError } = await supabase.from("roasting_records").insert([supabaseRecord])
+
+          if (insertError) throw insertError
+        } else {
+          const { error } = await supabase.from("roasting_records").update(supabaseRecord).eq("id", record.id)
+
+          if (error) throw error
+        }
+      } else {
+        const { error } = await supabase.from("roasting_records").insert([supabaseRecord])
+
+        if (error) throw error
+      }
+
+      await fetchRecords()
+      setView("list")
+      setEditingRecord(null)
     } catch (error) {
-      console.error('Error saving record:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      console.error("Error saving record:", error)
+      alert("저장 중 오류가 발생했습니다.")
     }
-  };
+  }
 
   const handleEdit = (record: RoastingRecord) => {
-    setEditingRecord(record);
-    setView('edit');
-    setViewingRecord(null);
-  };
+    setEditingRecord(record)
+    setView("edit")
+    setViewingRecord(null)
+  }
 
   const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('roasting_records')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // 데이터 다시 로드
-      await fetchRecords();
-    } catch (error) {
-      console.error('Error deleting record:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+    if (!isSupabaseConfigured) {
+      alert("데이터베이스가 연결되지 않았습니다.")
+      return
     }
-  };
+
+    try {
+      const { error } = await supabase.from("roasting_records").delete().eq("id", id)
+
+      if (error) throw error
+
+      await fetchRecords()
+    } catch (error) {
+      console.error("Error deleting record:", error)
+      alert("삭제 중 오류가 발생했습니다.")
+    }
+  }
 
   const handleCancel = () => {
-    setView('list');
-    setEditingRecord(null);
-  };
+    setView("list")
+    setEditingRecord(null)
+  }
 
   const handleView = (record: RoastingRecord) => {
-    setViewingRecord(record);
-  };
+    setViewingRecord(record)
+  }
 
-  const filteredRecords = records.filter(record => {
-    const search = searchTerm.toLowerCase();
+  const filteredRecords = records.filter((record) => {
+    const search = searchTerm.toLowerCase()
     return (
       record.id.includes(search) ||
       record.beanName.toLowerCase().includes(search) ||
       record.beanOrigin?.toLowerCase().includes(search) ||
       record.date.includes(search)
-    );
-  });
+    )
+  })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
-      {/* 헤더 - 파스텔 톤 */}
-      <header className="bg-gradient-to-r from-purple-200 to-pink-200 shadow-md sticky top-0 z-40 border-b-2 border-purple-300">
-        <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-purple-700 flex items-center gap-3">
-                ☕ TELA Coffee
-              </h1>
-              <p className="text-base text-purple-600 font-semibold mt-1">🔥 Roasting Record System</p>
+    <div className="min-h-screen pb-10">
+      <header className="bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 shadow-md border-b-2 border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <h1 className="text-4xl sm:text-5xl font-black text-gray-800 tracking-tight">TELA Coffee</h1>
+              <p className="text-lg sm:text-xl text-gray-600 font-semibold mt-2">Roasting Record System</p>
             </div>
-            
-            {view === 'list' && (
-              <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-all shadow-sm"
+                title="초기 세팅값 수정"
+              >
+                ⚙️ 설정
+              </button>
+              {view === "list" && (
                 <button
-                  onClick={() => setView('new')}
-                  className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-green-300 to-emerald-300 text-white rounded-3xl font-black text-lg hover:from-green-400 hover:to-emerald-400 transition-all shadow-md transform hover:scale-105 border-2 border-green-400"
+                  onClick={() => setView("new")}
+                  className="px-8 py-4 bg-blue-500 text-white rounded-xl font-bold text-xl hover:bg-blue-600 transition-all shadow-md transform hover:scale-105"
                 >
-                  ➕ 새 로스팅 기록
+                  새 로스팅 기록
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* 메인 콘텐츠 */}
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="text-6xl mb-4">☕</div>
-              <p className="text-2xl font-bold text-gray-700">데이터를 불러오는 중...</p>
-            </div>
-          </div>
-        ) : view === 'list' ? (
-          <div className="space-y-6">
-            {/* 검색 바 - 파스텔 톤 */}
-            <div className="bg-white rounded-3xl shadow-md p-5 border border-purple-200">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="🔍 검색 (ID, 원두명, 원산지, 날짜)"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-5 py-4 pl-12 border border-purple-200 rounded-2xl focus:ring-2 focus:ring-purple-300 text-lg"
-                />
-                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-2xl">
-                  🔍
-                </span>
+      {!isSupabaseConfigured && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6 shadow-md">
+            <div className="flex items-start gap-4">
+              <span className="text-3xl">⚠️</span>
+              <div>
+                <h3 className="text-lg font-bold text-amber-900 mb-2">데이터베이스 연결 필요</h3>
+                <p className="text-amber-800 font-medium mb-3">
+                  Supabase가 설정되지 않았습니다. 데이터를 저장하려면 환경 변수를 추가해주세요.
+                </p>
+                <div className="bg-white border border-amber-200 rounded-lg p-4 font-mono text-sm">
+                  <p className="text-amber-900 font-semibold mb-2">왼쪽 사이드바 'Vars' 섹션에서 추가:</p>
+                  <p className="text-amber-800">• NEXT_PUBLIC_SUPABASE_URL</p>
+                  <p className="text-amber-800">• NEXT_PUBLIC_SUPABASE_ANON_KEY</p>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* 통계 - 파스텔 톤 */}
+      {/* 메인 콘텐츠 */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="text-5xl mb-4 animate-bounce">☕</div>
+            <p className="text-xl text-gray-700 font-semibold">데이터를 불러오는 중...</p>
+          </div>
+        ) : view === "list" ? (
+          <div className="space-y-8">
+            <div className="relative max-w-3xl mx-auto">
+              <input
+                type="text"
+                placeholder="검색 (ID, 원두명, 원산지, 날짜)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-8 py-5 pl-14 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg font-medium shadow-sm bg-white"
+              />
+              <span className="absolute left-5 top-1/2 transform -translate-y-1/2 text-2xl">🔍</span>
+            </div>
+
             {records.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl shadow-md p-6 border border-blue-300 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-blue-700 font-semibold mb-1">전체 로스팅</p>
-                  <p className="text-4xl font-black text-blue-800">{records.length}회</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-700 mb-1">전체 로스팅</p>
+                  <p className="text-3xl font-black text-blue-900">{records.length}회</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-3xl shadow-md p-6 border border-green-300 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-green-700 font-semibold mb-1">총 투입량</p>
-                  <p className="text-4xl font-black text-green-800">
+                <div className="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-200">
+                  <p className="text-sm font-semibold text-amber-700 mb-1">총 투입량</p>
+                  <p className="text-3xl font-black text-amber-900">
                     {(records.reduce((sum, r) => sum + r.greenWeight, 0) / 1000).toFixed(1)}kg
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-3xl shadow-md p-6 border border-orange-300 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-orange-700 font-semibold mb-1">평균 수율</p>
-                  <p className="text-4xl font-black text-orange-800">
-                    {records.filter(r => r.yield).length > 0
+                <div className="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200">
+                  <p className="text-sm font-semibold text-green-700 mb-1">평균 수율</p>
+                  <p className="text-3xl font-black text-green-900">
+                    {records.filter((r) => r.yield).length > 0
                       ? (
-                          records.reduce((sum, r) => sum + (r.yield || 0), 0) /
-                          records.filter(r => r.yield).length
+                          records.reduce((sum, r) => sum + (r.yield || 0), 0) / records.filter((r) => r.yield).length
                         ).toFixed(1)
-                      : '-'}%
+                      : "-"}
+                    %
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-3xl shadow-md p-6 border border-purple-300 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-purple-700 font-semibold mb-1">평균 DTR</p>
-                  <p className="text-4xl font-black text-purple-800">
-                    {records.filter(r => r.dtr).length > 0
+                <div className="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-200">
+                  <p className="text-sm font-semibold text-purple-700 mb-1">평균 DTR</p>
+                  <p className="text-3xl font-black text-purple-900">
+                    {records.filter((r) => r.dtr).length > 0
                       ? (
-                          records.reduce((sum, r) => sum + (r.dtr || 0), 0) /
-                          records.filter(r => r.dtr).length
+                          records.reduce((sum, r) => sum + (r.dtr || 0), 0) / records.filter((r) => r.dtr).length
                         ).toFixed(1)
-                      : '-'}%
+                      : "-"}
+                    %
                   </p>
                 </div>
               </div>
             )}
 
-            {/* 로스팅 기록 테이블 */}
-            <RoastingTable
-              records={filteredRecords}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <RoastingTable records={filteredRecords} onEdit={handleEdit} onDelete={handleDelete} />
           </div>
-        ) : (view === 'new' || view === 'edit') ? (
-          <RoastingRecorder
-            onSave={handleSave}
-            onCancel={handleCancel}
-            editRecord={editingRecord}
-          />
+        ) : view === "new" || view === "edit" ? (
+          <RoastingRecorder onSave={handleSave} onCancel={handleCancel} editRecord={editingRecord} presets={presets} />
         ) : null}
       </main>
 
-      {/* 상세 보기 모달 */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">초기 세팅값 수정</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {[1, 2, 3].map((presetNum) => (
+                <div key={presetNum} className="border-2 border-gray-200 rounded-xl p-6">
+                  <h3 className="text-lg font-bold text-gray-700 mb-4">세팅 {presetNum}</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-2">F1</label>
+                      <input
+                        type="text"
+                        value={presets[presetNum as keyof typeof presets].fan1}
+                        onChange={(e) =>
+                          setPresets({
+                            ...presets,
+                            [presetNum]: { ...presets[presetNum as keyof typeof presets], fan1: e.target.value },
+                          })
+                        }
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-2">Ht</label>
+                      <input
+                        type="text"
+                        value={presets[presetNum as keyof typeof presets].heater}
+                        onChange={(e) =>
+                          setPresets({
+                            ...presets,
+                            [presetNum]: { ...presets[presetNum as keyof typeof presets], heater: e.target.value },
+                          })
+                        }
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-2">F2</label>
+                      <input
+                        type="text"
+                        value={presets[presetNum as keyof typeof presets].fan2}
+                        onChange={(e) =>
+                          setPresets({
+                            ...presets,
+                            [presetNum]: { ...presets[presetNum as keyof typeof presets], fan2: e.target.value },
+                          })
+                        }
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem("roasting_presets", JSON.stringify(presets))
+                  setShowSettings(false)
+                  alert("초기 세팅값이 저장되었습니다.")
+                }}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewingRecord && (
-        <RecordDetail
-          record={viewingRecord}
-          onClose={() => setViewingRecord(null)}
-          onEdit={handleEdit}
-        />
+        <RecordDetail record={viewingRecord} onClose={() => setViewingRecord(null)} onEdit={handleEdit} />
       )}
     </div>
-  );
+  )
 }
