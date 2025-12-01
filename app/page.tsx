@@ -35,6 +35,7 @@ export default function Home() {
         const formattedRecords: RoastingRecord[] = data.map((record: any) => ({
           id: record.id || '',
           date: record.date,
+          time: record.time,
           beanName: record.bean_name,
           beanOrigin: record.bean_origin,
           greenWeight: parseFloat(record.green_weight),
@@ -65,10 +66,17 @@ export default function Home() {
 
   const handleSave = async (record: RoastingRecord) => {
     try {
+      // ID가 없으면 저장하지 않음 (사용자가 직접 입력하도록)
+      if (!record.id) {
+        alert('ID를 입력해주세요.');
+        return;
+      }
+
       // 앱 형식을 Supabase 형식으로 변환
       const supabaseRecord = {
-        id: record.id || `${Date.now()}`,
+        id: record.id,
         date: record.date,
+        time: record.time,
         bean_name: record.beanName,
         bean_origin: record.beanOrigin,
         green_weight: record.greenWeight,
@@ -176,23 +184,23 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100">
-      {/* 헤더 */}
-      <header className="bg-gradient-to-r from-amber-600 to-orange-700 shadow-2xl sticky top-0 z-40 border-b-4 border-yellow-400">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
+      {/* 헤더 - 파스텔 톤 */}
+      <header className="bg-gradient-to-r from-purple-200 to-pink-200 shadow-md sticky top-0 z-40 border-b-2 border-purple-300">
         <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-white drop-shadow-lg flex items-center gap-3">
+              <h1 className="text-3xl sm:text-4xl font-black text-purple-700 flex items-center gap-3">
                 ☕ TELA Coffee
               </h1>
-              <p className="text-base text-amber-100 font-semibold mt-1">🔥 Roasting Record System</p>
+              <p className="text-base text-purple-600 font-semibold mt-1">🔥 Roasting Record System</p>
             </div>
             
             {view === 'list' && (
               <div className="flex gap-2">
                 <button
                   onClick={() => setView('new')}
-                  className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-black text-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-xl transform hover:scale-105 border-2 border-white"
+                  className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-green-300 to-emerald-300 text-white rounded-3xl font-black text-lg hover:from-green-400 hover:to-emerald-400 transition-all shadow-md transform hover:scale-105 border-2 border-green-400"
                 >
                   ➕ 새 로스팅 기록
                 </button>
@@ -213,15 +221,15 @@ export default function Home() {
           </div>
         ) : view === 'list' ? (
           <div className="space-y-6">
-            {/* 검색 바 */}
-            <div className="bg-white rounded-2xl shadow-xl p-5 border-2 border-amber-300">
+            {/* 검색 바 - 파스텔 톤 */}
+            <div className="bg-white rounded-3xl shadow-md p-5 border border-purple-200">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="🔍 검색 (ID, 원두명, 원산지, 날짜)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-5 py-4 pl-12 border-2 border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-lg font-semibold"
+                  className="w-full px-5 py-4 pl-12 border border-purple-200 rounded-2xl focus:ring-2 focus:ring-purple-300 text-lg"
                 />
                 <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-2xl">
                   🔍
@@ -229,22 +237,22 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 통계 */}
+            {/* 통계 - 파스텔 톤 */}
             {records.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-xl p-6 border-2 border-blue-400 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-blue-100 font-semibold mb-1">전체 로스팅</p>
-                  <p className="text-4xl font-black text-white drop-shadow-lg">{records.length}회</p>
+                <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl shadow-md p-6 border border-blue-300 transform hover:scale-105 transition-all">
+                  <p className="text-sm text-blue-700 font-semibold mb-1">전체 로스팅</p>
+                  <p className="text-4xl font-black text-blue-800">{records.length}회</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-2xl shadow-xl p-6 border-2 border-green-400 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-green-100 font-semibold mb-1">총 투입량</p>
-                  <p className="text-4xl font-black text-white drop-shadow-lg">
+                <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-3xl shadow-md p-6 border border-green-300 transform hover:scale-105 transition-all">
+                  <p className="text-sm text-green-700 font-semibold mb-1">총 투입량</p>
+                  <p className="text-4xl font-black text-green-800">
                     {(records.reduce((sum, r) => sum + r.greenWeight, 0) / 1000).toFixed(1)}kg
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-xl p-6 border-2 border-amber-400 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-amber-100 font-semibold mb-1">평균 수율</p>
-                  <p className="text-4xl font-black text-white drop-shadow-lg">
+                <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-3xl shadow-md p-6 border border-orange-300 transform hover:scale-105 transition-all">
+                  <p className="text-sm text-orange-700 font-semibold mb-1">평균 수율</p>
+                  <p className="text-4xl font-black text-orange-800">
                     {records.filter(r => r.yield).length > 0
                       ? (
                           records.reduce((sum, r) => sum + (r.yield || 0), 0) /
@@ -253,9 +261,9 @@ export default function Home() {
                       : '-'}%
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl shadow-xl p-6 border-2 border-purple-400 transform hover:scale-105 transition-all">
-                  <p className="text-sm text-purple-100 font-semibold mb-1">평균 DTR</p>
-                  <p className="text-4xl font-black text-white drop-shadow-lg">
+                <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-3xl shadow-md p-6 border border-purple-300 transform hover:scale-105 transition-all">
+                  <p className="text-sm text-purple-700 font-semibold mb-1">평균 DTR</p>
+                  <p className="text-4xl font-black text-purple-800">
                     {records.filter(r => r.dtr).length > 0
                       ? (
                           records.reduce((sum, r) => sum + (r.dtr || 0), 0) /

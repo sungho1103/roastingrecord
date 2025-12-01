@@ -1,6 +1,7 @@
 export interface RoastingRecord {
   id: string; // 5자리 숫자 (빈 문자열로 시작 가능)
   date: string; // YYYY-MM-DD
+  time?: string; // HH:MM 로스팅 시작 시간
   beanName: string; // 원두 이름
   beanOrigin?: string; // 원산지
   greenWeight: number; // 생두 투입량 (g)

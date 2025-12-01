@@ -28,6 +28,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
   const [heater, setHeater] = useState('');
   const [fan2, setFan2] = useState('');
   const [recordId, setRecordId] = useState('');
+  const [roastTime, setRoastTime] = useState('');
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -46,6 +47,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
       setHeater(editRecord.heater?.toString() || '');
       setFan2(editRecord.fan2?.toString() || '');
       setRecordId(editRecord.id || '');
+      setRoastTime(editRecord.time || '');
       
       if (editRecord.totalTime) {
         const [min, sec] = editRecord.totalTime.split(':').map(Number);
@@ -89,6 +91,14 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
   };
 
   const handleTempClick = (temp: number) => {
+    // 이미 기록된 온도를 다시 누르면 취소
+    if (temps[temp]) {
+      const { [temp]: removed, ...rest } = temps;
+      setTemps(rest);
+      setStatusMessage('❌ 온도 기록 취소됨');
+      return;
+    }
+
     const currentTime = formatTime(elapsedTime);
     setTemps(prev => ({
       ...prev,
@@ -138,6 +148,13 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
       setCustomBeanName('');
       setShowBeanInput(false);
     }
+  };
+
+  const handleSetCurrentTime = () => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    setRoastTime(`${hours}:${minutes}`);
   };
 
   const handleWeightChange = (value: number) => {
@@ -211,6 +228,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
     const record: RoastingRecord = {
       id: recordId || editRecord?.id || `${Date.now()}`, // recordId를 최우선으로
       date: dateStr,
+      time: roastTime || undefined,
       beanName,
       beanOrigin: beanOrigin || undefined,
       greenWeight: parseFloat(greenWeight),
@@ -240,38 +258,61 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
 
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
-      {/* 기본 정보 카드 */}
-      <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl shadow-lg border-2 border-amber-200 p-6 space-y-5">
-        <h2 className="text-3xl font-bold text-amber-900 flex items-center gap-2">
+      {/* 기본 정보 카드 - 파스텔 톤 */}
+      <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl shadow-md border border-purple-200 p-6 space-y-5">
+        <h2 className="text-3xl font-bold text-purple-700 flex items-center gap-2">
           ☕ {editRecord ? '로스팅 기록 수정' : '새 로스팅 기록'}
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* ID (수정 시에만 입력 가능) */}
+          {/* 날짜 + 시간 */}
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-2">
-              ID (나중에 입력 가능)
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              로스팅 시작 시간
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="time"
+                value={roastTime}
+                onChange={(e) => setRoastTime(e.target.value)}
+                className="flex-1 px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-300 bg-white text-lg"
+                placeholder="HH:MM"
+              />
+              <button
+                onClick={handleSetCurrentTime}
+                className="px-4 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white rounded-xl font-semibold hover:from-purple-500 hover:to-pink-500 transition-all shadow-sm"
+                type="button"
+              >
+                현재시간
+              </button>
+            </div>
+          </div>
+          
+          {/* ID (사용자 직접 입력만) */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              ID (선택사항)
             </label>
             <input
               type="text"
               value={recordId}
               onChange={(e) => setRecordId(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 bg-gray-50 text-lg font-semibold"
-              placeholder="공란 또는 직접 입력"
-              maxLength={10}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-300 bg-white text-lg"
+              placeholder="직접 입력 (선택)"
+              maxLength={20}
             />
           </div>
           
           {/* 원두명 드롭다운 */}
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               원두명 *
             </label>
             <div className="flex gap-2">
               <select
                 value={beanName}
                 onChange={(e) => handleBeanChange(e.target.value)}
-                className="flex-1 px-4 py-3 border-2 border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-lg font-semibold"
+                className="flex-1 px-4 py-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-300 bg-white text-lg"
               >
                 <option value="">선택하세요</option>
                 {beanList.map((bean) => (
@@ -280,10 +321,11 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
               </select>
               <button
                 onClick={() => setShowBeanInput(!showBeanInput)}
-                className="px-4 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all shadow-md"
+                className="px-4 py-3 bg-gradient-to-r from-blue-300 to-cyan-300 text-white rounded-xl font-semibold hover:from-blue-400 hover:to-cyan-400 transition-all shadow-sm"
                 title="원두 추가"
+                type="button"
               >
-                + 원두추가
+                + 추가
               </button>
             </div>
             
@@ -294,7 +336,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
                   value={customBeanName}
                   onChange={(e) => setCustomBeanName(e.target.value)}
                   placeholder="새 원두명 입력"
-                  className="flex-1 px-4 py-2 border-2 border-green-300 rounded-xl focus:ring-2 focus:ring-green-500"
+                  className="flex-1 px-4 py-2 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-300"
                   onKeyPress={(e) => e.key === 'Enter' && handleAddBean()}
                 />
                 <button
@@ -421,21 +463,21 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
         </div>
       </div>
 
-      {/* 타이머 및 온도 기록 카드 */}
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl p-8 space-y-6">
-        <h3 className="text-3xl font-bold text-amber-400 flex items-center gap-3">
+      {/* 타이머 및 온도 기록 카드 - 파스텔 톤 */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl shadow-md border border-indigo-200 p-8 space-y-6">
+        <h3 className="text-3xl font-bold text-indigo-600 flex items-center gap-3">
           ⏱️ 로스팅 타이머
         </h3>
         
-        {/* 타이머 디스플레이 - 매우 크게 */}
-        <div className="text-center bg-black rounded-2xl p-8 border-4 border-amber-500">
-          <div className="text-9xl md:text-[12rem] font-mono font-black text-amber-400 mb-4 tracking-wider drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
+        {/* 타이머 디스플레이 */}
+        <div className="text-center bg-white rounded-3xl p-8 border-2 border-indigo-200 shadow-inner">
+          <div className="text-9xl md:text-[12rem] font-mono font-black text-indigo-600 mb-4 tracking-wider">
             {formatTime(elapsedTime)}
           </div>
           
           {/* 상태 메시지 */}
           {statusMessage && (
-            <div className="text-3xl font-bold text-white bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 rounded-xl mb-4 animate-pulse">
+            <div className="text-2xl font-bold text-indigo-700 bg-gradient-to-r from-pink-100 to-purple-100 px-6 py-4 rounded-2xl mb-4 border border-purple-200">
               {statusMessage}
             </div>
           )}
@@ -443,10 +485,10 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
           <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={() => setIsRunning(!isRunning)}
-              className={`px-8 py-4 rounded-xl font-bold text-white text-xl shadow-xl transition-all transform hover:scale-105 ${
+              className={`px-10 py-5 rounded-2xl font-bold text-white text-xl shadow-md transition-all transform hover:scale-105 ${
                 isRunning 
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' 
-                  : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
+                  ? 'bg-gradient-to-r from-red-300 to-pink-300 hover:from-red-400 hover:to-pink-400' 
+                  : 'bg-gradient-to-r from-green-300 to-emerald-300 hover:from-green-400 hover:to-emerald-400'
               }`}
             >
               {isRunning ? '⏸️ 일시정지' : '▶️ 시작'}
@@ -459,31 +501,31 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
                 setTemps({});
                 setStatusMessage('');
               }}
-              className="px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-xl shadow-xl transition-all transform hover:scale-105"
+              className="px-10 py-5 rounded-2xl font-bold bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 hover:from-gray-300 hover:to-gray-400 text-xl shadow-md transition-all transform hover:scale-105"
             >
               🔄 리셋
             </button>
           </div>
         </div>
 
-        {/* 온도 버튼들 - 크게 */}
+        {/* 온도 버튼들 - 더 크게, 파스텔 톤 */}
         <div className="space-y-4">
-          <h4 className="font-bold text-amber-300 text-2xl">🌡️ 온도 기록</h4>
-          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+          <h4 className="font-bold text-indigo-600 text-2xl">🌡️ 온도 기록 (다시 누르면 취소)</h4>
+          <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3">
             {TEMP_BUTTONS.map((temp) => (
               <button
                 key={temp}
                 onClick={() => handleTempClick(temp)}
                 disabled={!isRunning && !temps[temp]}
-                className={`px-4 py-4 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+                className={`px-5 py-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-md ${
                   temps[temp]
-                    ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white border-2 border-yellow-300 scale-105'
-                    : 'bg-gradient-to-br from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 border-2 border-gray-600'
+                    ? 'bg-gradient-to-br from-orange-200 to-pink-200 text-orange-800 border-2 border-orange-300 scale-105'
+                    : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-500 hover:from-gray-200 hover:to-gray-300 border-2 border-gray-300'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <div className="text-xl font-black">{temp}°</div>
+                <div className="text-2xl font-black">{temp}°</div>
                 {temps[temp] && (
-                  <div className="text-sm mt-1 font-mono bg-black bg-opacity-30 px-2 py-1 rounded">
+                  <div className="text-sm mt-1 font-mono bg-white bg-opacity-70 px-2 py-1 rounded">
                     {temps[temp]}
                   </div>
                 )}
@@ -491,47 +533,47 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
             ))}
           </div>
           
-          {/* 배출 버튼 - 매우 크게 */}
+          {/* 배출 버튼 - 매우 크게, 파스텔 톤 */}
           <button
             onClick={handleEndRoast}
             disabled={!isRunning}
-            className={`w-full px-8 py-6 rounded-2xl font-black text-white text-3xl shadow-2xl transition-all transform hover:scale-[1.02] ${
+            className={`w-full px-8 py-8 rounded-3xl font-black text-white text-3xl shadow-lg transition-all transform hover:scale-[1.02] ${
               temps['end']
-                ? 'bg-gradient-to-r from-purple-600 to-purple-800 border-4 border-purple-300'
-                : 'bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 border-4 border-blue-400'
+                ? 'bg-gradient-to-r from-purple-300 to-pink-300 border-2 border-purple-400'
+                : 'bg-gradient-to-r from-blue-300 to-cyan-300 hover:from-blue-400 hover:to-cyan-400 border-2 border-blue-400'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {temps['end'] ? `✅ 배출 완료 (${temps['end']})` : '🔥 배출'}
           </button>
         </div>
 
-        {/* 자동 계산 구간 - 강조 */}
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-6 space-y-3 border-4 border-yellow-400">
-          <h4 className="font-black text-white text-2xl flex items-center gap-2">
+        {/* 자동 계산 구간 - 파스텔 톤 */}
+        <div className="bg-gradient-to-br from-yellow-100 to-orange-100 rounded-3xl p-6 space-y-3 border-2 border-orange-200 shadow-md">
+          <h4 className="font-black text-orange-700 text-2xl flex items-center gap-2">
             📊 자동 계산
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white bg-opacity-20 backdrop-blur rounded-xl p-4 border-2 border-white border-opacity-40">
-              <span className="text-white font-semibold block text-sm">전체 로스팅 시간</span>
-              <span className="text-3xl font-black text-yellow-200 block mt-1">
+            <div className="bg-white rounded-2xl p-4 border border-orange-200 shadow-sm">
+              <span className="text-gray-600 font-semibold block text-sm">전체 로스팅 시간</span>
+              <span className="text-3xl font-black text-orange-600 block mt-1">
                 {temps['end'] || '-'}
               </span>
             </div>
-            <div className="bg-white bg-opacity-20 backdrop-blur rounded-xl p-4 border-2 border-white border-opacity-40">
-              <span className="text-white font-semibold block text-sm">메일라드 (150-180°C)</span>
-              <span className="text-3xl font-black text-yellow-200 block mt-1">
+            <div className="bg-white rounded-2xl p-4 border border-orange-200 shadow-sm">
+              <span className="text-gray-600 font-semibold block text-sm">메일라드 (150-180°C)</span>
+              <span className="text-3xl font-black text-orange-600 block mt-1">
                 {maillardTime || '-'}
               </span>
             </div>
-            <div className="bg-white bg-opacity-20 backdrop-blur rounded-xl p-4 border-2 border-white border-opacity-40">
-              <span className="text-white font-semibold block text-sm">디벨롭 (183-배출)</span>
-              <span className="text-3xl font-black text-yellow-200 block mt-1">
+            <div className="bg-white rounded-2xl p-4 border border-orange-200 shadow-sm">
+              <span className="text-gray-600 font-semibold block text-sm">디벨롭 (183-배출)</span>
+              <span className="text-3xl font-black text-orange-600 block mt-1">
                 {developTime || '-'}
               </span>
             </div>
-            <div className="bg-white bg-opacity-20 backdrop-blur rounded-xl p-4 border-2 border-white border-opacity-40">
-              <span className="text-white font-semibold block text-sm">DTR</span>
-              <span className="text-3xl font-black text-yellow-200 block mt-1">
+            <div className="bg-white rounded-2xl p-4 border border-orange-200 shadow-sm">
+              <span className="text-gray-600 font-semibold block text-sm">DTR</span>
+              <span className="text-3xl font-black text-orange-600 block mt-1">
                 {dtr ? `${dtr}%` : '-'}
               </span>
             </div>
@@ -539,9 +581,9 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
         </div>
       </div>
 
-      {/* 메모 카드 */}
-      <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-lg border-2 border-blue-200 p-6 space-y-4">
-        <h3 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
+      {/* 메모 카드 - 파스텔 톤 */}
+      <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-3xl shadow-md border border-teal-200 p-6 space-y-4">
+        <h3 className="text-2xl font-bold text-teal-700 flex items-center gap-2">
           📝 메모
         </h3>
         
@@ -578,13 +620,13 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord }: Roast
       <div className="flex gap-4 sticky bottom-4">
         <button
           onClick={handleSave}
-          className="flex-1 px-8 py-5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-2xl font-black text-xl hover:from-amber-700 hover:to-orange-700 shadow-2xl transition-all transform hover:scale-[1.02] border-4 border-yellow-400"
+          className="flex-1 px-8 py-6 bg-gradient-to-r from-green-300 to-emerald-300 text-white rounded-3xl font-black text-xl hover:from-green-400 hover:to-emerald-400 shadow-lg transition-all transform hover:scale-[1.02] border-2 border-green-400"
         >
           💾 저장
         </button>
         <button
           onClick={onCancel}
-          className="px-8 py-5 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-2xl font-black text-xl hover:from-gray-500 hover:to-gray-600 shadow-xl transition-all"
+          className="px-8 py-6 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-3xl font-black text-xl hover:from-gray-300 hover:to-gray-400 shadow-md transition-all"
         >
           ❌ 취소
         </button>

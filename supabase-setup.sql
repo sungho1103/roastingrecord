@@ -2,6 +2,7 @@
 CREATE TABLE roasting_records (
   id TEXT PRIMARY KEY,
   date DATE NOT NULL,
+  time TEXT,
   bean_name TEXT NOT NULL,
   bean_origin TEXT,
   green_weight DECIMAL(10, 2) NOT NULL,
