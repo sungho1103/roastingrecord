@@ -16,10 +16,22 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [presets, setPresets] = useState({
-    1: { fan1: "75", heater: "90", fan2: "2.5" },
-    2: { fan1: "80", heater: "85", fan2: "3.0" },
-    3: { fan1: "70", heater: "95", fan2: "2.0" },
+    1: { name: "세팅 1", fan1: "75", heater: "90", fan2: "2.5" },
+    2: { name: "세팅 2", fan1: "80", heater: "85", fan2: "3.0" },
+    3: { name: "세팅 3", fan1: "70", heater: "95", fan2: "2.0" },
   })
+
+  useEffect(() => {
+    const savedPresets = localStorage.getItem("roasting_presets")
+    if (savedPresets) {
+      try {
+        const parsed = JSON.parse(savedPresets)
+        setPresets(parsed)
+      } catch (e) {
+        console.error("Failed to parse presets:", e)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     fetchRecords()
@@ -315,7 +327,21 @@ export default function Home() {
             <div className="space-y-6">
               {[1, 2, 3].map((presetNum) => (
                 <div key={presetNum} className="border-2 border-gray-200 rounded-xl p-6">
-                  <h3 className="text-lg font-bold text-gray-700 mb-4">세팅 {presetNum}</h3>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-600 mb-2">세팅 이름</label>
+                    <input
+                      type="text"
+                      value={presets[presetNum as keyof typeof presets].name}
+                      onChange={(e) =>
+                        setPresets({
+                          ...presets,
+                          [presetNum]: { ...presets[presetNum as keyof typeof presets], name: e.target.value },
+                        })
+                      }
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg font-semibold"
+                      placeholder={`세팅 ${presetNum}`}
+                    />
+                  </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-600 mb-2">F1</label>
