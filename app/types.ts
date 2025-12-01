@@ -44,12 +44,12 @@ export const WEIGHT_OPTIONS = [
 ] as const
 
 export const DEFAULT_BEANS = [
-  "Ethiopia Yirgacheffe",
-  "Colombia Supremo",
-  "Kenya AA",
-  "Brazil Santos",
-  "Guatemala Antigua",
-  "Costa Rica Tarrazu",
-  "Indonesia Sumatra",
-  "Panama Geisha",
+  "에티오피아 예가체프",
+  "콜롬비아 수프리모",
+  "케냐 AA",
+  "브라질 산토스",
+  "과테말라 안티구아",
+  "코스타리카 따라주",
+  "인도네시아 수마트라",
+  "파나마 게이샤",
 ] as const

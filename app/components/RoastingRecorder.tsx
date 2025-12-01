@@ -47,9 +47,9 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
       return JSON.parse(stored)
     }
     return {
-      1: { fan1: "75", heater: "90", fan2: "2.5" },
-      2: { fan1: "80", heater: "85", fan2: "3.0" },
-      3: { fan1: "70", heater: "95", fan2: "2.0" },
+      1: { fan1: "75", heater: "90", fan2: "2.5", name: "세팅1" },
+      2: { fan1: "80", heater: "85", fan2: "3.0", name: "세팅2" },
+      3: { fan1: "70", heater: "95", fan2: "2.0", name: "세팅3" },
     }
   }
 
@@ -636,7 +636,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
                     }`}
                     type="button"
                   >
-                    {preset}
+                    {preset} - {presets[preset as keyof typeof presets].name || `세팅${preset}`}
                   </button>
                 ))}
               </div>
