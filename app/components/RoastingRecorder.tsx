@@ -203,14 +203,26 @@ export default function RoastingRecorder({
     setBeanOrigin(firstWord)
   }
 
-  const handleSaveCustomBean = () => {
+  const handleSaveCustomBean = async () => {
     if (customBeanName.trim()) {
-      const newBeanList = [...beanListState, customBeanName.trim()]
-      setBeanListState(newBeanList)
-      if (onBeanListUpdate) {
-        onBeanListUpdate(newBeanList)
+      const trimmedName = customBeanName.trim()
+
+      // Check if bean already exists
+      if (!beanListState.includes(trimmedName)) {
+        const newBeanList = [...beanListState, trimmedName]
+        setBeanListState(newBeanList)
+
+        // Call parent update function
+        if (onBeanListUpdate) {
+          await onBeanListUpdate(newBeanList)
+        }
+
+        console.log("[v0] Added new bean to list:", trimmedName)
       }
-      setBeanName(customBeanName.trim())
+
+      setBeanName(trimmedName)
+      const firstWord = trimmedName.split(" ")[0]
+      setBeanOrigin(firstWord)
       setShowCustomInput(false)
       setCustomBeanName("")
     }
