@@ -236,16 +236,25 @@ export default function RoastingRecorder({
   }
 
   const handleSaveBeanList = async () => {
+    console.log("[v0] handleSaveBeanList called")
+    console.log("[v0] editableBeanList:", editableBeanList)
+
     const filtered = editableBeanList.filter((bean) => bean.trim() !== "")
+    console.log("[v0] filtered bean list:", filtered)
+
     setBeanListState(filtered)
     console.log("[v0] Saving bean list:", filtered)
 
     if (onBeanListUpdate) {
+      console.log("[v0] Calling onBeanListUpdate with:", filtered)
       await onBeanListUpdate(filtered)
       console.log("[v0] Bean list update completed")
+    } else {
+      console.error("[v0] onBeanListUpdate is not defined!")
     }
 
     setIsEditingBeanList(false)
+    console.log("[v0] Bean list modal closed")
   }
 
   const handleUpdateBeanItem = (index: number, value: string) => {

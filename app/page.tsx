@@ -153,6 +153,8 @@ export default function Home() {
   }
 
   const syncBeanListToSupabase = async (beans: string[]) => {
+    console.log("[v0] syncBeanListToSupabase called with:", beans)
+
     // Always save to localStorage first
     localStorage.setItem("beanList", JSON.stringify(beans))
     console.log("[v0] Saved bean list to localStorage:", beans)
@@ -200,8 +202,10 @@ export default function Home() {
   }
 
   const handleBeanListUpdate = async (newBeanList: string[]) => {
+    console.log("[v0] handleBeanListUpdate called with:", newBeanList)
     setBeanList(newBeanList)
     await syncBeanListToSupabase(newBeanList)
+    console.log("[v0] handleBeanListUpdate completed")
   }
 
   const handleSave = async (record: RoastingRecord) => {
