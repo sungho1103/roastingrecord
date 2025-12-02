@@ -113,7 +113,6 @@ export default function Home() {
 
       if (error) {
         console.error("[v0] Supabase error:", error.message)
-        // Fallback to localStorage
         const saved = localStorage.getItem("beanList")
         if (saved) {
           setBeanList(JSON.parse(saved))
@@ -126,22 +125,17 @@ export default function Home() {
 
       if (data && data.length > 0) {
         const beans = data.map((item) => item.name)
+        console.log("[v0] Loaded bean list from Supabase:", JSON.stringify(beans))
+        localStorage.removeItem("beanList")
         setBeanList(beans)
         localStorage.setItem("beanList", JSON.stringify(beans))
-        console.log("[v0] Loaded bean list from Supabase:", beans)
       } else {
-        // No data in Supabase, use localStorage or defaults
-        const saved = localStorage.getItem("beanList")
-        if (saved) {
-          setBeanList(JSON.parse(saved))
-        } else {
-          setBeanList(DEFAULT_BEANS)
-          localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
-        }
+        console.log("[v0] No data in Supabase, using defaults")
+        setBeanList(DEFAULT_BEANS)
+        localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
       }
     } catch (error) {
       console.error("[v0] Error fetching bean list:", error)
-      // Fallback to localStorage
       const saved = localStorage.getItem("beanList")
       if (saved) {
         setBeanList(JSON.parse(saved))

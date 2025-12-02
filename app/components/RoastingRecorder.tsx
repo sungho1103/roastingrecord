@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { type RoastingRecord, TEMP_BUTTONS, WEIGHT_OPTIONS, DEFAULT_BEANS } from "../types"
+import { type RoastingRecord, TEMP_BUTTONS, WEIGHT_OPTIONS } from "../types"
 
 interface RoastingRecorderProps {
   onSave: (record: RoastingRecord) => void
@@ -14,7 +14,8 @@ interface RoastingRecorderProps {
     2: { name: string; fan1: string; heater: string; fan2: string }
     3: { name: string; fan1: string; heater: string; fan2: string }
   }
-  onBeanListUpdate?: (newList: string[]) => void
+  beanList: string[]
+  onBeanListUpdate: (updatedList: string[]) => Promise<void>
 }
 
 export default function RoastingRecorder({
@@ -22,6 +23,7 @@ export default function RoastingRecorder({
   onCancel,
   editRecord,
   presets,
+  beanList,
   onBeanListUpdate,
 }: RoastingRecorderProps) {
   const [isRunning, setIsRunning] = useState(false)
@@ -36,7 +38,7 @@ export default function RoastingRecorder({
   const [roastedWeight, setRoastedWeight] = useState("")
   const [notes, setNotes] = useState("")
   const [cuppingNotes, setCuppingNotes] = useState("")
-  const [beanListState, setBeanListState] = useState<string[]>([...DEFAULT_BEANS])
+  const [beanListState, setBeanListState] = useState<string[]>(beanList)
   const [statusMessage, setStatusMessage] = useState("")
   const [fan1, setFan1] = useState("75")
   const [heater, setHeater] = useState("90")
@@ -149,6 +151,11 @@ export default function RoastingRecorder({
       }
     }
   }, [isRunning, elapsedTime, temps])
+
+  useEffect(() => {
+    console.log("[v0] RoastingRecorder: beanList prop changed:", beanList)
+    setBeanListState(beanList)
+  }, [beanList])
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
