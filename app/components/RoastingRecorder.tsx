@@ -263,18 +263,18 @@ export default function RoastingRecorder({
       try {
         await onBeanListUpdate(filtered)
         console.log("[v0] onBeanListUpdate completed successfully")
-        alert("원두 목록이 저장되었습니다.")
       } catch (error) {
         console.error("[v0] onBeanListUpdate error:", error)
-        alert("원두 목록 저장 중 오류가 발생했습니다. 로컬에는 저장되었습니다.")
+        alert("Supabase 저장 중 오류가 발생했습니다: " + error)
       }
     } else {
       console.error("[v0] ERROR: onBeanListUpdate is not defined!")
       alert("원두 목록 업데이트 함수가 정의되지 않았습니다.")
     }
 
+    // Close modal after save completes
     setIsEditingBeanList(false)
-    console.log("[v0] === BEAN LIST SAVE COMPLETED ===")
+    console.log("[v0] === BEAN LIST SAVE COMPLETED, MODAL CLOSED ===")
   }
 
   const handleUpdateBeanItem = (index: number, value: string) => {

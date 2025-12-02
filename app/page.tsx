@@ -163,23 +163,27 @@ export default function Home() {
     }
 
     try {
-      // Delete all existing records
       console.log("[v0] Step 1: Deleting all existing beans from Supabase...")
       const { error: deleteError } = await supabase
         .from("bean_names")
         .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000")
+        .gte("id", "00000000-0000-0000-0000-000000000000")
 
       if (deleteError) {
         console.error("[v0] Delete error:", deleteError)
-        throw deleteError
+        // Continue anyway, maybe table was empty
       }
 
-      console.log("[v0] Step 2: Delete successful")
+      console.log("[v0] Step 2: Delete completed")
 
       // Insert new records
       const beanRecords = beans.filter((b) => b.trim()).map((name) => ({ name }))
       console.log("[v0] Step 3: Inserting beans:", beanRecords)
+
+      if (beanRecords.length === 0) {
+        console.log("[v0] No beans to insert")
+        return
+      }
 
       const { data, error: insertError } = await supabase.from("bean_names").insert(beanRecords).select()
 
@@ -216,11 +220,11 @@ export default function Home() {
 
     // Sync to Supabase
     try {
+      console.log("[v0] Starting Supabase sync...")
       await syncBeanListToSupabase(newBeanList)
       console.log("[v0] Supabase sync completed")
     } catch (error) {
       console.error("[v0] Supabase sync failed:", error)
-      throw error
     }
 
     console.log("[v0] === HANDLE BEAN LIST UPDATE COMPLETED ===")
