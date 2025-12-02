@@ -240,34 +240,41 @@ export default function RoastingRecorder({
 
   const handleSaveBeanList = async () => {
     console.log("[v0] === BEAN LIST SAVE BUTTON CLICKED ===")
-    console.log("[v0] editableBeanList:", editableBeanList)
+    console.log("[v0] editableBeanList before filter:", editableBeanList)
 
     const filtered = editableBeanList.filter((bean) => bean.trim() !== "")
-    console.log("[v0] filtered bean list:", filtered)
+    console.log("[v0] Filtered bean list:", filtered)
 
+    // Update local state first
     setBeanListState(filtered)
+    console.log("[v0] Updated beanListState")
 
+    // Save to localStorage
     try {
       localStorage.setItem("beanList", JSON.stringify(filtered))
-      console.log("[v0] Saved to localStorage:", filtered)
+      console.log("[v0] Saved to localStorage successfully")
     } catch (e) {
       console.error("[v0] LocalStorage save error:", e)
     }
 
+    // Call parent update function to sync with Supabase
     if (onBeanListUpdate) {
       console.log("[v0] Calling onBeanListUpdate with:", filtered)
       try {
         await onBeanListUpdate(filtered)
-        console.log("[v0] Bean list update completed successfully")
+        console.log("[v0] onBeanListUpdate completed successfully")
+        alert("원두 목록이 저장되었습니다.")
       } catch (error) {
-        console.error("[v0] Error during bean list update:", error)
+        console.error("[v0] onBeanListUpdate error:", error)
+        alert("원두 목록 저장 중 오류가 발생했습니다. 로컬에는 저장되었습니다.")
       }
     } else {
-      console.error("[v0] onBeanListUpdate is not defined!")
+      console.error("[v0] ERROR: onBeanListUpdate is not defined!")
+      alert("원두 목록 업데이트 함수가 정의되지 않았습니다.")
     }
 
     setIsEditingBeanList(false)
-    console.log("[v0] Bean list modal closed")
+    console.log("[v0] === BEAN LIST SAVE COMPLETED ===")
   }
 
   const handleUpdateBeanItem = (index: number, value: string) => {
@@ -276,7 +283,7 @@ export default function RoastingRecorder({
     setEditableBeanList(updated)
   }
 
-  const handleRemoveBeanItem = (index: number) => {
+  const handleDeleteBeanItem = (index: number) => {
     const updated = editableBeanList.filter((_, i) => i !== index)
     setEditableBeanList(updated)
   }
@@ -928,8 +935,8 @@ export default function RoastingRecorder({
       {/* Bean list editor modal */}
       {isEditingBeanList && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold text-gray-800 mb-6">원두 목록 편집</h3>
+          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold mb-6 text-gray-800">원두 목록 편집</h3>
             <div className="space-y-3 mb-6">
               {editableBeanList.map((bean, index) => (
                 <div key={index} className="flex gap-3">
@@ -937,12 +944,12 @@ export default function RoastingRecorder({
                     type="text"
                     value={bean}
                     onChange={(e) => handleUpdateBeanItem(index, e.target.value)}
-                    className="flex-1 px-5 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-base font-medium"
+                    className="flex-1 px-5 py-3 text-xl border-3 border-gray-300 rounded-2xl focus:border-gray-500 focus:outline-none"
+                    placeholder="원두명"
                   />
                   <button
-                    onClick={() => handleRemoveBeanItem(index)}
-                    className="px-5 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all"
-                    type="button"
+                    onClick={() => handleDeleteBeanItem(index)}
+                    className="px-6 py-4 bg-red-500 text-white text-lg rounded-2xl hover:bg-red-600 transition-colors"
                   >
                     삭제
                   </button>
@@ -951,25 +958,28 @@ export default function RoastingRecorder({
             </div>
             <button
               onClick={handleAddBeanItem}
-              className="w-full px-6 py-4 bg-green-500 text-white rounded-xl font-bold text-lg hover:bg-green-600 transition-all mb-4"
-              type="button"
+              className="mt-6 px-8 py-4 bg-green-500 text-white text-xl rounded-2xl hover:bg-green-600 transition-colors w-full"
             >
               + 원두 추가
             </button>
-            <div className="flex gap-4">
+            <div className="mt-6 flex gap-4">
               <button
-                onClick={handleSaveBeanList}
-                className="flex-1 px-6 py-4 bg-blue-500 text-white rounded-xl font-bold text-lg hover:bg-blue-600 transition-all"
-                type="button"
-              >
-                저장
-              </button>
-              <button
-                onClick={() => setIsEditingBeanList(false)}
-                className="flex-1 px-6 py-4 bg-gray-400 text-white rounded-xl font-bold text-lg hover:bg-gray-500 transition-all"
-                type="button"
+                onClick={() => {
+                  console.log("[v0] Cancel button clicked")
+                  setIsEditingBeanList(false)
+                }}
+                className="flex-1 px-8 py-4 bg-gray-300 text-gray-700 text-xl rounded-2xl hover:bg-gray-400 transition-colors"
               >
                 취소
+              </button>
+              <button
+                onClick={() => {
+                  console.log("[v0] Save button clicked, calling handleSaveBeanList")
+                  handleSaveBeanList()
+                }}
+                className="flex-1 px-8 py-4 bg-blue-600 text-white text-xl rounded-2xl hover:bg-blue-700 transition-colors"
+              >
+                저장하기
               </button>
             </div>
           </div>

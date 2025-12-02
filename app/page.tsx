@@ -155,6 +155,7 @@ export default function Home() {
   const syncBeanListToSupabase = async (beans: string[]) => {
     console.log("[v0] === SYNC TO SUPABASE STARTED ===")
     console.log("[v0] Beans to sync:", beans)
+    console.log("[v0] isSupabaseConfigured:", isSupabaseConfigured)
 
     if (!isSupabaseConfigured) {
       console.log("[v0] Supabase not configured, skipping sync")
@@ -162,18 +163,23 @@ export default function Home() {
     }
 
     try {
-      console.log("[v0] Deleting all existing beans from Supabase...")
-      const { error: deleteError } = await supabase.from("bean_names").delete().gte("created_at", "1970-01-01")
+      // Delete all existing records
+      console.log("[v0] Step 1: Deleting all existing beans from Supabase...")
+      const { error: deleteError } = await supabase
+        .from("bean_names")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000")
 
       if (deleteError) {
         console.error("[v0] Delete error:", deleteError)
         throw deleteError
       }
 
-      console.log("[v0] Delete successful, now inserting new beans...")
+      console.log("[v0] Step 2: Delete successful")
 
+      // Insert new records
       const beanRecords = beans.filter((b) => b.trim()).map((name) => ({ name }))
-      console.log("[v0] Bean records to insert:", beanRecords)
+      console.log("[v0] Step 3: Inserting beans:", beanRecords)
 
       const { data, error: insertError } = await supabase.from("bean_names").insert(beanRecords).select()
 
@@ -182,25 +188,41 @@ export default function Home() {
         throw insertError
       }
 
-      console.log("[v0] === SYNC TO SUPABASE COMPLETED ===")
+      console.log("[v0] Step 4: Insert successful")
       console.log("[v0] Inserted data:", data)
+      console.log("[v0] === SYNC TO SUPABASE COMPLETED SUCCESSFULLY ===")
     } catch (error) {
       console.error("[v0] === SYNC TO SUPABASE FAILED ===")
       console.error("[v0] Sync error:", error)
-      alert("원두 목록을 Supabase에 저장하는 중 오류가 발생했습니다. localStorage에는 저장되었습니다.")
+      throw error
     }
   }
 
   const handleBeanListUpdate = async (newBeanList: string[]) => {
     console.log("[v0] === HANDLE BEAN LIST UPDATE STARTED ===")
-    console.log("[v0] New bean list:", newBeanList)
+    console.log("[v0] New bean list received:", newBeanList)
 
+    // Update React state
     setBeanList(newBeanList)
+    console.log("[v0] Updated React state")
 
-    localStorage.setItem("beanList", JSON.stringify(newBeanList))
-    console.log("[v0] Saved to localStorage")
+    // Save to localStorage
+    try {
+      localStorage.setItem("beanList", JSON.stringify(newBeanList))
+      console.log("[v0] Saved to localStorage successfully")
+    } catch (e) {
+      console.error("[v0] localStorage save error:", e)
+    }
 
-    await syncBeanListToSupabase(newBeanList)
+    // Sync to Supabase
+    try {
+      await syncBeanListToSupabase(newBeanList)
+      console.log("[v0] Supabase sync completed")
+    } catch (error) {
+      console.error("[v0] Supabase sync failed:", error)
+      throw error
+    }
+
     console.log("[v0] === HANDLE BEAN LIST UPDATE COMPLETED ===")
   }
 
