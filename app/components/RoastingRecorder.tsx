@@ -50,6 +50,9 @@ export default function RoastingRecorder({
   const [showFloating, setShowFloating] = useState(true)
   const [currentMaillardTime, setCurrentMaillardTime] = useState<string>("")
   const [currentMaillardPercent, setCurrentMaillardPercent] = useState<number | undefined>(undefined)
+  const [floatingPosition, setFloatingPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
@@ -236,19 +239,29 @@ export default function RoastingRecorder({
   }
 
   const handleSaveBeanList = async () => {
-    console.log("[v0] handleSaveBeanList called")
+    console.log("[v0] === BEAN LIST SAVE BUTTON CLICKED ===")
     console.log("[v0] editableBeanList:", editableBeanList)
 
     const filtered = editableBeanList.filter((bean) => bean.trim() !== "")
     console.log("[v0] filtered bean list:", filtered)
 
     setBeanListState(filtered)
-    console.log("[v0] Saving bean list:", filtered)
+
+    try {
+      localStorage.setItem("beanList", JSON.stringify(filtered))
+      console.log("[v0] Saved to localStorage:", filtered)
+    } catch (e) {
+      console.error("[v0] LocalStorage save error:", e)
+    }
 
     if (onBeanListUpdate) {
       console.log("[v0] Calling onBeanListUpdate with:", filtered)
-      await onBeanListUpdate(filtered)
-      console.log("[v0] Bean list update completed")
+      try {
+        await onBeanListUpdate(filtered)
+        console.log("[v0] Bean list update completed successfully")
+      } catch (error) {
+        console.error("[v0] Error during bean list update:", error)
+      }
     } else {
       console.error("[v0] onBeanListUpdate is not defined!")
     }
@@ -463,10 +476,51 @@ export default function RoastingRecorder({
     }
   }
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - floatingPosition.x,
+      y: e.clientY - floatingPosition.y,
+    })
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setFloatingPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove)
+      document.addEventListener("mouseup", handleMouseUp)
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove)
+        document.removeEventListener("mouseup", handleMouseUp)
+      }
+    }
+  }, [isDragging, dragStart])
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {showFloating && isRunning && (temps["150"] || temps["182"] || temps["183"]) && (
-        <div className="fixed top-4 right-4 bg-white p-6 rounded-2xl shadow-2xl border-2 border-gray-300 z-50 min-w-[300px]">
+        <div
+          className="fixed bg-white p-6 rounded-2xl shadow-2xl border-2 border-gray-300 z-50 min-w-[300px] cursor-move"
+          style={{
+            top: floatingPosition.y === 0 ? "1rem" : `${floatingPosition.y}px`,
+            right: floatingPosition.x === 0 ? "1rem" : "auto",
+            left: floatingPosition.x !== 0 ? `${floatingPosition.x}px` : "auto",
+            transform: floatingPosition.x === 0 && floatingPosition.y === 0 ? "translateX(calc(-100% - 1rem))" : "none",
+          }}
+          onMouseDown={handleMouseDown}
+        >
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-gray-800">실시간 구간</h3>
             <button
