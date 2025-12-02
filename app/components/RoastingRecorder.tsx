@@ -526,42 +526,47 @@ export default function RoastingRecorder({
     <div className="space-y-8 max-w-5xl mx-auto">
       {showFloating && isRunning && (temps["150"] || temps["182"] || temps["183"]) && (
         <div
-          className="fixed bg-white p-6 rounded-2xl shadow-2xl border-2 border-gray-300 z-50 min-w-[300px] cursor-move"
+          className="fixed z-50 cursor-move select-none"
           style={{
             top: floatingPosition.y === 0 ? "1rem" : `${floatingPosition.y}px`,
-            right: floatingPosition.x === 0 ? "1rem" : "auto",
-            left: floatingPosition.x !== 0 ? `${floatingPosition.x}px` : "auto",
-            transform: floatingPosition.x === 0 && floatingPosition.y === 0 ? "translateX(calc(-100% - 1rem))" : "none",
+            left: floatingPosition.x === 0 ? "1rem" : `${floatingPosition.x}px`,
           }}
           onMouseDown={handleMouseDown}
         >
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-800">실시간 구간</h3>
+          <div className="relative">
             <button
               onClick={() => setShowFloating(false)}
-              className="text-gray-500 hover:text-gray-700 font-bold text-xl"
+              className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800/80 text-white rounded-full hover:bg-gray-900 flex items-center justify-center text-sm font-bold z-10"
               type="button"
             >
               ×
             </button>
-          </div>
-          <div className="space-y-3">
-            {temps["150"] && displayMaillardTime && (
-              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                <div className="text-sm font-semibold text-gray-600">메일라드</div>
-                <div className="text-xl font-bold text-blue-700">{displayMaillardTime}</div>
-                {displayMaillardPercent && (
-                  <div className="text-sm font-semibold text-blue-600">{displayMaillardPercent}%</div>
-                )}
-              </div>
-            )}
-            {(temps["182"] || temps["183"]) && currentDevelopTime && (
-              <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                <div className="text-sm font-semibold text-gray-600">발현(디벨롭)</div>
-                <div className="text-xl font-bold text-orange-700">{currentDevelopTime}</div>
-                {currentDTR && <div className="text-sm font-semibold text-orange-600">DTR: {currentDTR}%</div>}
-              </div>
-            )}
+            <div className="space-y-2">
+              {temps["150"] && displayMaillardTime && (
+                <div className="text-right">
+                  <div className="text-5xl md:text-6xl font-bold text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    {displayMaillardTime}
+                  </div>
+                  {displayMaillardPercent && (
+                    <div className="text-2xl md:text-3xl font-bold text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                      {displayMaillardPercent}%
+                    </div>
+                  )}
+                </div>
+              )}
+              {(temps["182"] || temps["183"]) && currentDevelopTime && (
+                <div className="text-right">
+                  <div className="text-5xl md:text-6xl font-bold text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    {currentDevelopTime}
+                  </div>
+                  {currentDTR && (
+                    <div className="text-2xl md:text-3xl font-bold text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                      DTR: {currentDTR}%
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
