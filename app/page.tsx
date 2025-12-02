@@ -165,30 +165,34 @@ export default function Home() {
     try {
       console.log("[v0] Syncing bean list to Supabase:", beans)
 
-      // Delete all existing beans
-      const { error: deleteError } = await supabase
-        .from("bean_names")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000")
+      // Delete all existing beans - use gte instead of neq for better compatibility
+      const { error: deleteError } = await supabase.from("bean_names").delete().gte("created_at", "1970-01-01")
 
       if (deleteError) {
-        console.error("[v0] Error deleting beans:", deleteError.message)
-        return
+        console.error("[v0] Error deleting beans:", deleteError)
+        throw deleteError
       }
+
+      console.log("[v0] Successfully deleted all beans from Supabase")
 
       // Insert new beans
-      const beanRecords = beans.map((name) => ({ name }))
-      const { error: insertError } = await supabase.from("bean_names").insert(beanRecords)
+      const beanRecords = beans.filter((b) => b.trim()).map((name) => ({ name }))
+      console.log("[v0] Inserting beans to Supabase:", beanRecords)
+
+      const { data, error: insertError } = await supabase.from("bean_names").insert(beanRecords).select()
 
       if (insertError) {
-        console.error("[v0] Error inserting beans:", insertError.message)
-        return
+        console.error("[v0] Error inserting beans:", insertError)
+        throw insertError
       }
 
-      console.log("[v0] Successfully synced bean list to Supabase")
+      console.log("[v0] Successfully synced bean list to Supabase, inserted:", data)
+
+      // Reload from Supabase to confirm
       await fetchBeanList()
     } catch (error) {
       console.error("[v0] Error syncing bean list:", error)
+      alert("원두 목록 저장 중 오류가 발생했습니다. localStorage에만 저장됩니다.")
     }
   }
 

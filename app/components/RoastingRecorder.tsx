@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { type RoastingRecord, TEMP_BUTTONS, WEIGHT_OPTIONS, DEFAULT_BEANS } from "../types"
 
@@ -423,6 +425,30 @@ export default function RoastingRecorder({
 
   const displayMaillardTime = currentMaillardTime || maillardTime
   const displayMaillardPercent = currentMaillardPercent !== undefined ? currentMaillardPercent : maillardPercent
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!beanName.trim()) {
+      alert("원두명을 선택해주세요.")
+      return
+    }
+
+    // If custom bean name was entered, add it to the bean list
+    if (beanName === "기타" && customBeanName.trim()) {
+      const newBeanName = customBeanName.trim()
+      console.log("[v0] Adding custom bean name to list:", newBeanName)
+
+      if (!beanListState.includes(newBeanName)) {
+        const updatedList = [...beanListState.filter((b) => b !== "기타"), newBeanName, "기타"]
+        setBeanListState(updatedList)
+        if (onBeanListUpdate) {
+          console.log("[v0] Calling onBeanListUpdate with:", updatedList)
+          onBeanListUpdate(updatedList)
+        }
+      }
+      setBeanName(newBeanName)
+    }
+  }
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
