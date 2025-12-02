@@ -235,12 +235,16 @@ export default function RoastingRecorder({
     setIsEditingBeanList(true)
   }
 
-  const handleSaveBeanList = () => {
+  const handleSaveBeanList = async () => {
     const filtered = editableBeanList.filter((bean) => bean.trim() !== "")
     setBeanListState(filtered)
+    console.log("[v0] Saving bean list:", filtered)
+
     if (onBeanListUpdate) {
-      onBeanListUpdate(filtered)
+      await onBeanListUpdate(filtered)
+      console.log("[v0] Bean list update completed")
     }
+
     setIsEditingBeanList(false)
   }
 

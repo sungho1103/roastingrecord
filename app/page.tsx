@@ -163,9 +163,10 @@ export default function Home() {
     }
 
     try {
-      console.log("[v0] Syncing bean list to Supabase:", beans)
+      console.log("[v0] Starting Supabase sync for bean list:", beans)
 
-      // Delete all existing beans - use gte instead of neq for better compatibility
+      // Delete all existing beans
+      console.log("[v0] Deleting all existing beans from Supabase...")
       const { error: deleteError } = await supabase.from("bean_names").delete().gte("created_at", "1970-01-01")
 
       if (deleteError) {
@@ -186,9 +187,11 @@ export default function Home() {
         throw insertError
       }
 
-      console.log("[v0] Successfully synced bean list to Supabase, inserted:", data)
+      console.log("[v0] Successfully synced bean list to Supabase")
+      console.log("[v0] Inserted data:", data)
 
       // Reload from Supabase to confirm
+      console.log("[v0] Reloading bean list from Supabase to confirm...")
       await fetchBeanList()
     } catch (error) {
       console.error("[v0] Error syncing bean list:", error)
