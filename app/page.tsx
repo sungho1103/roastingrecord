@@ -7,6 +7,8 @@ import RoastingTable from "./components/RoastingTable"
 import RecordDetail from "./components/RecordDetail"
 import { supabase, isSupabaseConfigured } from "../lib/supabase"
 
+const DEFAULT_BEANS = ["Arabica", "Robusta", "Liberica"]
+
 export default function Home() {
   const [records, setRecords] = useState<RoastingRecord[]>([])
   const [view, setView] = useState<"list" | "new" | "edit">("list")
@@ -89,38 +91,87 @@ export default function Home() {
 
   const fetchBeanList = async () => {
     if (!isSupabaseConfigured) {
-      console.log("[v0] Supabase not configured, using default beans")
+      console.log("[v0] Supabase not configured, using localStorage")
+      // Load from localStorage as fallback
+      const stored = localStorage.getItem("beanList")
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          setBeanList(parsed)
+        } catch (e) {
+          console.error("Error parsing localStorage bean list:", e)
+        }
+      }
       return
     }
 
     try {
+      console.log("[v0] Fetching bean list from Supabase...")
       const { data, error } = await supabase.from("bean_names").select("name").order("created_at", { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Supabase error:", error)
+        // Fallback to localStorage if table doesn't exist yet
+        const stored = localStorage.getItem("beanList")
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          setBeanList(parsed)
+        }
+        return
+      }
 
       if (data && data.length > 0) {
         const names = data.map((item: any) => item.name)
+        console.log("[v0] Loaded bean list from Supabase:", names)
         setBeanList(names)
+        // Also save to localStorage as backup
+        localStorage.setItem("beanList", JSON.stringify(names))
+      } else {
+        // If no data in Supabase, use DEFAULT_BEANS and sync to Supabase
+        console.log("[v0] No beans in Supabase, syncing defaults...")
+        await syncBeanListToSupabase(DEFAULT_BEANS)
       }
     } catch (error) {
-      console.error("Error fetching bean list:", error)
+      console.error("[v0] Error fetching bean list:", error)
+      // Fallback to localStorage
+      const stored = localStorage.getItem("beanList")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        setBeanList(parsed)
+      }
     }
   }
 
   const syncBeanListToSupabase = async (beans: string[]) => {
-    if (!isSupabaseConfigured) return
+    if (!isSupabaseConfigured) {
+      console.log("[v0] Supabase not configured, saving to localStorage only")
+      localStorage.setItem("beanList", JSON.stringify(beans))
+      return
+    }
 
     try {
+      console.log("[v0] Syncing bean list to Supabase:", beans)
+      // Delete all existing beans
       await supabase.from("bean_names").delete().neq("id", "00000000-0000-0000-0000-000000000000")
 
+      // Insert new beans
       const beanRecords = beans.map((name) => ({ name }))
       const { error } = await supabase.from("bean_names").insert(beanRecords)
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Error syncing to Supabase:", error)
+        // Save to localStorage as fallback
+        localStorage.setItem("beanList", JSON.stringify(beans))
+        return
+      }
 
+      console.log("[v0] Successfully synced bean list to Supabase")
+      // Also save to localStorage
+      localStorage.setItem("beanList", JSON.stringify(beans))
       await fetchBeanList()
     } catch (error) {
-      console.error("Error syncing bean list:", error)
+      console.error("[v0] Error syncing bean list:", error)
+      localStorage.setItem("beanList", JSON.stringify(beans))
     }
   }
 
