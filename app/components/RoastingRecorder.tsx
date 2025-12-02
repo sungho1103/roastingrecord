@@ -7,10 +7,21 @@ interface RoastingRecorderProps {
   onSave: (record: RoastingRecord) => void
   onCancel: () => void
   editRecord?: RoastingRecord | null
-  onBeanListUpdate?: (beans: string[]) => void
+  presets?: {
+    1: { name: string; fan1: string; heater: string; fan2: string }
+    2: { name: string; fan1: string; heater: string; fan2: string }
+    3: { name: string; fan1: string; heater: string; fan2: string }
+  }
+  onBeanListUpdate?: (newList: string[]) => void
 }
 
-export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanListUpdate }: RoastingRecorderProps) {
+export default function RoastingRecorder({
+  onSave,
+  onCancel,
+  editRecord,
+  presets,
+  onBeanListUpdate,
+}: RoastingRecorderProps) {
   const [isRunning, setIsRunning] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [temps, setTemps] = useState<{ [key: string]: string }>({})
@@ -23,7 +34,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
   const [roastedWeight, setRoastedWeight] = useState("")
   const [notes, setNotes] = useState("")
   const [cuppingNotes, setCuppingNotes] = useState("")
-  const [beanList, setBeanList] = useState<string[]>([...DEFAULT_BEANS])
+  const [beanListState, setBeanListState] = useState<string[]>([...DEFAULT_BEANS])
   const [statusMessage, setStatusMessage] = useState("")
   const [fan1, setFan1] = useState("75")
   const [heater, setHeater] = useState("90")
@@ -54,13 +65,13 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
   }
 
   const [currentPreset, setCurrentPreset] = useState<number>(1)
-  const [presets] = useState(loadPresetsFromStorage())
+  const [storedPresets] = useState(loadPresetsFromStorage())
 
   const handlePresetChange = (preset: number) => {
     setCurrentPreset(preset)
-    setFan1(presets[preset as keyof typeof presets].fan1)
-    setHeater(presets[preset as keyof typeof presets].heater)
-    setFan2(presets[preset as keyof typeof presets].fan2)
+    setFan1(presets ? presets[preset].fan1 : storedPresets[preset].fan1)
+    setHeater(presets ? presets[preset].heater : storedPresets[preset].heater)
+    setFan2(presets ? presets[preset].fan2 : storedPresets[preset].fan2)
   }
 
   useEffect(() => {
@@ -95,13 +106,6 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
       }
     }
   }, [greenWeight])
-
-  useEffect(() => {
-    const savedBeans = localStorage.getItem("bean-list")
-    if (savedBeans) {
-      setBeanList(JSON.parse(savedBeans))
-    }
-  }, [])
 
   useEffect(() => {
     if (isRunning) {
@@ -201,31 +205,29 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
 
   const handleSaveCustomBean = () => {
     if (customBeanName.trim()) {
-      const newBeanList = [...beanList, customBeanName.trim()]
-      setBeanList(newBeanList)
-      localStorage.setItem("bean-list", JSON.stringify(newBeanList))
-      setBeanName(customBeanName.trim())
-      setShowCustomInput(false)
-      setCustomBeanName("")
+      const newBeanList = [...beanListState, customBeanName.trim()]
+      setBeanListState(newBeanList)
       if (onBeanListUpdate) {
         onBeanListUpdate(newBeanList)
       }
+      setBeanName(customBeanName.trim())
+      setShowCustomInput(false)
+      setCustomBeanName("")
     }
   }
 
   const handleEditBeanList = () => {
-    setEditableBeanList([...beanList])
+    setEditableBeanList([...beanListState])
     setIsEditingBeanList(true)
   }
 
   const handleSaveBeanList = () => {
     const filtered = editableBeanList.filter((bean) => bean.trim() !== "")
-    setBeanList(filtered)
-    localStorage.setItem("bean-list", JSON.stringify(filtered))
-    setIsEditingBeanList(false)
+    setBeanListState(filtered)
     if (onBeanListUpdate) {
       onBeanListUpdate(filtered)
     }
+    setIsEditingBeanList(false)
   }
 
   const handleUpdateBeanItem = (index: number, value: string) => {
@@ -541,7 +543,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
               className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
             >
               <option value="">원두를 선택하세요</option>
-              {beanList.map((bean) => (
+              {beanListState.map((bean) => (
                 <option key={bean} value={bean}>
                   {bean}
                 </option>
@@ -636,7 +638,7 @@ export default function RoastingRecorder({ onSave, onCancel, editRecord, onBeanL
                     }`}
                     type="button"
                   >
-                    {preset} - {presets[preset as keyof typeof presets].name || `세팅${preset}`}
+                    {preset} - {presets ? presets[preset].name : storedPresets[preset].name || `세팅${preset}`}
                   </button>
                 ))}
               </div>

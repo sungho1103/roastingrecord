@@ -15,6 +15,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  const [beanList, setBeanList] = useState<string[]>([])
   const [presets, setPresets] = useState({
     1: { name: "세팅 1", fan1: "75", heater: "90", fan2: "2.5" },
     2: { name: "세팅 2", fan1: "80", heater: "85", fan2: "3.0" },
@@ -35,6 +36,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchRecords()
+    fetchBeanList()
   }, [])
 
   const fetchRecords = async () => {
@@ -83,6 +85,48 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchBeanList = async () => {
+    if (!isSupabaseConfigured) {
+      console.log("[v0] Supabase not configured, using default beans")
+      return
+    }
+
+    try {
+      const { data, error } = await supabase.from("bean_names").select("name").order("created_at", { ascending: true })
+
+      if (error) throw error
+
+      if (data && data.length > 0) {
+        const names = data.map((item: any) => item.name)
+        setBeanList(names)
+      }
+    } catch (error) {
+      console.error("Error fetching bean list:", error)
+    }
+  }
+
+  const syncBeanListToSupabase = async (beans: string[]) => {
+    if (!isSupabaseConfigured) return
+
+    try {
+      await supabase.from("bean_names").delete().neq("id", "00000000-0000-0000-0000-000000000000")
+
+      const beanRecords = beans.map((name) => ({ name }))
+      const { error } = await supabase.from("bean_names").insert(beanRecords)
+
+      if (error) throw error
+
+      await fetchBeanList()
+    } catch (error) {
+      console.error("Error syncing bean list:", error)
+    }
+  }
+
+  const handleBeanListUpdate = async (newBeanList: string[]) => {
+    setBeanList(newBeanList)
+    await syncBeanListToSupabase(newBeanList)
   }
 
   const handleSave = async (record: RoastingRecord) => {
@@ -186,6 +230,45 @@ export default function Home() {
     setViewingRecord(record)
   }
 
+  const handleExportBeans = () => {
+    if (beanList.length > 0) {
+      const blob = new Blob([JSON.stringify(beanList)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "bean_list.json"
+      a.click()
+      URL.revokeObjectURL(url)
+      alert("원두 목록이 다운로드되었습니다.")
+    } else {
+      alert("저장된 원두 목록이 없습니다.")
+    }
+  }
+
+  const handleImportBeans = () => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "application/json"
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = async (event) => {
+          try {
+            const content = event.target?.result as string
+            const importedBeans = JSON.parse(content)
+            await syncBeanListToSupabase(importedBeans)
+            alert("원두 목록을 가져왔습니다.")
+          } catch (error) {
+            alert("잘못된 파일 형식입니다.")
+          }
+        }
+        reader.readAsText(file)
+      }
+    }
+    input.click()
+  }
+
   const filteredRecords = records.filter((record) => {
     const search = searchTerm.toLowerCase()
     return (
@@ -247,7 +330,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 메인 콘텐츠 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="text-center py-20">
@@ -307,15 +389,22 @@ export default function Home() {
             <RoastingTable records={filteredRecords} onEdit={handleEdit} onDelete={handleDelete} />
           </div>
         ) : view === "new" || view === "edit" ? (
-          <RoastingRecorder onSave={handleSave} onCancel={handleCancel} editRecord={editingRecord} presets={presets} />
+          <RoastingRecorder
+            onSave={handleSave}
+            onCancel={handleCancel}
+            editRecord={editingRecord}
+            presets={presets}
+            beanList={beanList}
+            onBeanListUpdate={handleBeanListUpdate}
+          />
         ) : null}
       </main>
 
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">초기 세팅값 수정</h2>
+              <h2 className="text-2xl font-bold text-gray-800">설정</h2>
               <button
                 onClick={() => setShowSettings(false)}
                 className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
@@ -324,6 +413,28 @@ export default function Home() {
               </button>
             </div>
 
+            <div className="mb-8 border-2 border-blue-200 rounded-xl p-6 bg-blue-50">
+              <h3 className="text-lg font-bold text-blue-900 mb-3">원두 목록 동기화</h3>
+              <p className="text-sm text-blue-800 mb-4">
+                다른 기기에서 동일한 원두 목록을 사용하려면 내보내기/가져오기를 이용하세요.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleExportBeans}
+                  className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all"
+                >
+                  📤 원두 목록 내보내기
+                </button>
+                <button
+                  onClick={handleImportBeans}
+                  className="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all"
+                >
+                  📥 원두 목록 가져오기
+                </button>
+              </div>
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-800 mb-4">초기 세팅값</h3>
             <div className="space-y-6">
               {[1, 2, 3].map((presetNum) => (
                 <div key={presetNum} className="border-2 border-gray-200 rounded-xl p-6">
