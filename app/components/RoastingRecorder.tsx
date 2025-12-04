@@ -236,6 +236,7 @@ export default function RoastingRecorder({
     setTemps((prev) => ({ ...prev, [temp]: timeStr }))
 
     setLastRecordedTemp(temp)
+    console.log("[v0] Temperature button clicked:", temp, "- lastRecordedTemp updated")
 
     if (temp === 180) {
       // Maillard time is already stored in frozen state, just update status
@@ -255,7 +256,9 @@ export default function RoastingRecorder({
 
     if (lastRecordedTemp !== undefined) {
       setFinalTemp(lastRecordedTemp.toString())
-      console.log("[v0] Final temp set to:", lastRecordedTemp)
+      console.log("[v0] Discharge pressed - Final temp set to:", lastRecordedTemp)
+    } else {
+      console.log("[v0] Discharge pressed - No lastRecordedTemp available")
     }
 
     setStatusMessage("로스팅 완료!")
@@ -520,6 +523,9 @@ export default function RoastingRecorder({
     const totalTime = temps["end"] || formatTime(elapsedTime)
     const yieldPercent = calculateYield()
 
+    console.log("[v0] Saving record - finalTemp value:", finalTemp)
+    console.log("[v0] Saving record - finalTemp as number:", finalTemp ? Number(finalTemp) : undefined)
+
     const newRecord: RoastingRecord = {
       id: editRecord?.id || Date.now().toString().slice(-5),
       date: roastDate,
@@ -546,6 +552,8 @@ export default function RoastingRecorder({
       createdAt: editRecord?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
+
+    console.log("[v0] Complete record to be saved:", newRecord)
 
     onSave(newRecord)
     handleReset()
