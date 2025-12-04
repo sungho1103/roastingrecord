@@ -15,6 +15,9 @@ export interface RoastingRecord {
   temps: {
     [key: string]: string // 온도: 시간(MM:SS)
   }
+  firstCrackTime?: string // 1st 크랙 시간
+  secondCrackTime?: string // 2nd 크랙 시간
+  finalTemp?: number // 배출 직전 최종 온도
   // 자동 계산 구간
   maillardTime?: string // 150도-180도
   developTime?: string // 182도 또는 183도-배출

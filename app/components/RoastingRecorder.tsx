@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { type RoastingRecord, TEMP_BUTTONS, WEIGHT_OPTIONS } from "../types"
+import type { RoastingRecord } from "../types"
+import { TEMP_BUTTONS, WEIGHT_OPTIONS } from "../types"
 
 interface RoastingRecorderProps {
   onSave: (record: RoastingRecord) => void
@@ -55,6 +56,12 @@ export default function RoastingRecorder({
   const [floatingPosition, setFloatingPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [firstCrackTime, setFirstCrackTime] = useState<string>("")
+  const [secondCrackTime, setSecondCrackTime] = useState<string>("")
+  const [finalTemp, setFinalTemp] = useState<string>("")
+  const [showCustomWeight, setShowCustomWeight] = useState(false)
+  const [showCustomBean, setShowCustomBean] = useState(false)
+  const [yieldValue, setYieldValue] = useState<number | undefined>(undefined)
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
@@ -97,6 +104,10 @@ export default function RoastingRecorder({
       setMemo(editRecord.memo || "")
       setRoastTime(editRecord.time || "")
       setRoastDate(editRecord.date || "")
+      setFirstCrackTime(editRecord.firstCrackTime || "")
+      setSecondCrackTime(editRecord.secondCrackTime || "")
+      setFinalTemp(editRecord.finalTemp?.toString() || "")
+      setYieldValue(editRecord.yield)
 
       if (editRecord.totalTime) {
         const [min, sec] = editRecord.totalTime.split(":").map(Number)
@@ -110,6 +121,7 @@ export default function RoastingRecorder({
       const green = Number.parseFloat(greenWeight)
       if (!Number.isNaN(green) && green > 0) {
         setRoastedWeight((green * 0.85).toFixed(0))
+        setYieldValue(Number((((green * 0.85) / green) * 100).toFixed(2)))
       }
     }
   }, [greenWeight])
@@ -323,6 +335,32 @@ export default function RoastingRecorder({
     }
   }
 
+  const calculateFirstCrackToDevelopTime = () => {
+    if (!firstCrackTime || !temps["end"]) return undefined
+
+    const [fcMin, fcSec] = firstCrackTime.split(":").map(Number)
+    const [endMin, endSec] = temps["end"].split(":").map(Number)
+
+    const fcTotalSec = fcMin * 60 + fcSec
+    const endTotalSec = endMin * 60 + endSec
+
+    const diffSec = endTotalSec - fcTotalSec
+    const min = Math.floor(diffSec / 60)
+    const sec = diffSec % 60
+
+    return `${min}:${sec.toString().padStart(2, "0")}`
+  }
+
+  const handleFirstCrack = () => {
+    const timeStr = formatTime(elapsedTime)
+    setFirstCrackTime(timeStr)
+  }
+
+  const handleSecondCrack = () => {
+    const timeStr = formatTime(elapsedTime)
+    setSecondCrackTime(timeStr)
+  }
+
   const calculateMaillardTime = (): string | undefined => {
     const temp150 = temps["150"]
     const temp180 = temps["180"]
@@ -412,32 +450,26 @@ export default function RoastingRecorder({
     return Number(((roasted / green) * 100).toFixed(2))
   }
 
-  const handleSave = () => {
-    const finalBeanName = showCustomInput ? customBeanName : beanName
-
-    if (!finalBeanName || !greenWeight) {
-      alert("원두명과 투입량은 필수입니다.")
-      return
-    }
+  const handleSaveRecord = () => {
+    // ... existing validation code ...
 
     const now = new Date().toISOString()
-    const dateStr = roastDate || new Date().toISOString().split("T")[0]
-
-    const finalId = recordId.trim() || `R${Date.now().toString().slice(-8)}`
-
     const record: RoastingRecord = {
-      id: finalId,
-      date: dateStr,
-      time: roastTime || undefined,
-      beanName: finalBeanName,
+      id: recordId || Math.floor(Math.random() * 100000).toString(),
+      date: roastDate,
+      time: roastTime,
+      beanName,
       beanOrigin: beanOrigin || undefined,
       greenWeight: Number.parseFloat(greenWeight),
       roastedWeight: roastedWeight ? Number.parseFloat(roastedWeight) : undefined,
-      yield: calculateYield(),
+      yield: yieldValue || undefined,
       fan1: fan1 ? Number.parseFloat(fan1) : undefined,
       heater: heater ? Number.parseFloat(heater) : undefined,
       fan2: fan2 ? Number.parseFloat(fan2) : undefined,
       temps,
+      firstCrackTime: firstCrackTime || undefined,
+      secondCrackTime: secondCrackTime || undefined,
+      finalTemp: finalTemp ? Number.parseFloat(finalTemp) : undefined,
       maillardTime: calculateMaillardTime(),
       developTime: calculateDevelopTime(),
       dtr: calculateDTR(),
@@ -524,7 +556,7 @@ export default function RoastingRecorder({
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
-      {showFloating && isRunning && (temps["150"] || temps["182"] || temps["183"]) && (
+      {showFloating && isRunning && (temps["150"] || temps["182"] || temps["183"] || firstCrackTime) && (
         <div
           className="fixed z-50 cursor-move select-none"
           style={{
@@ -542,28 +574,21 @@ export default function RoastingRecorder({
               ×
             </button>
             <div className="space-y-2">
-              {temps["150"] && displayMaillardTime && (
-                <div className="text-right">
-                  <div className="text-5xl md:text-6xl font-bold text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    {displayMaillardTime}
-                  </div>
-                  {displayMaillardPercent && (
-                    <div className="text-2xl md:text-3xl font-bold text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                      {displayMaillardPercent}%
-                    </div>
-                  )}
+              {currentMaillardTime && (
+                <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                  M: {currentMaillardTime}
+                  {currentMaillardPercent !== undefined && ` (${currentMaillardPercent}%)`}
                 </div>
               )}
-              {(temps["182"] || temps["183"]) && currentDevelopTime && (
-                <div className="text-right">
-                  <div className="text-5xl md:text-6xl font-bold text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    {currentDevelopTime}
-                  </div>
-                  {currentDTR && (
-                    <div className="text-2xl md:text-3xl font-bold text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                      DTR: {currentDTR}%
-                    </div>
-                  )}
+              {temps["end"] && (temps["182"] || temps["183"]) && (
+                <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                  D: {calculateDevelopTime()}
+                  {calculateDTR() !== undefined && ` (${calculateDTR()}%)`}
+                </div>
+              )}
+              {firstCrackTime && temps["end"] && (
+                <div className="text-blue-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                  1st→배출: {calculateFirstCrackToDevelopTime()}
                 </div>
               )}
             </div>
@@ -626,6 +651,116 @@ export default function RoastingRecorder({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <label className="block text-base font-semibold text-gray-700">투입량(g)</label>
+              <div className="grid grid-cols-4 gap-2">
+                {WEIGHT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      if (option.value === 0) {
+                        setGreenWeight("")
+                        setShowCustomWeight(true)
+                      } else {
+                        setGreenWeight(option.value.toString())
+                        setShowCustomWeight(false)
+                      }
+                    }}
+                    className={`px-4 py-3 rounded-lg font-semibold text-base transition-all shadow-md transform hover:scale-105 ${
+                      greenWeight === option.value.toString() || (option.value === 0 && showCustomWeight)
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-base font-semibold text-gray-700">직접입력(g)</label>
+              <input
+                type="number"
+                value={greenWeight}
+                onChange={(e) => setGreenWeight(e.target.value)}
+                className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                placeholder="직접 입력"
+                step="0.1"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-base font-semibold text-gray-700">원두명</label>
+            <div className="flex items-center gap-4">
+              <select
+                value={beanName}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === "기타") {
+                    setShowCustomBean(true)
+                    setBeanName("")
+                  } else {
+                    setShowCustomBean(false)
+                    setBeanName(value)
+                  }
+                }}
+                className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+              >
+                <option value="">선택하세요</option>
+                {beanListState.map((bean) => (
+                  <option key={bean} value={bean}>
+                    {bean}
+                  </option>
+                ))}
+                <option value="기타">기타 (직접입력)</option>
+              </select>
+              {greenWeight && (
+                <span className="text-lg font-semibold text-gray-700 whitespace-nowrap">{greenWeight}g</span>
+              )}
+            </div>
+            {showCustomBean && (
+              <input
+                type="text"
+                value={beanName}
+                onChange={(e) => setBeanName(e.target.value)}
+                className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm mt-3"
+                placeholder="원두명 입력"
+                maxLength={50}
+              />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-base font-semibold text-gray-700">원산지 (자동 입력됨)</label>
+            <input
+              type="text"
+              value={beanOrigin}
+              onChange={(e) => setBeanOrigin(e.target.value)}
+              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-gray-50 text-lg font-medium shadow-sm"
+              placeholder="자동으로 채워집니다"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-base font-semibold text-gray-700">배출량 (g) - 자동계산 85%</label>
+            <input
+              type="number"
+              value={roastedWeight}
+              onChange={(e) => setRoastedWeight(e.target.value)}
+              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+              placeholder="자동계산됨 (수정가능)"
+            />
+            {yieldPercent && (
+              <p className="text-xl font-bold text-green-700 bg-green-50 p-3 rounded-xl text-center shadow-sm border border-green-200">
+                수율: {yieldPercent}%
+              </p>
+            )}
+          </div>
+
           <div className="space-y-3">
             <label className="block text-base font-semibold text-gray-700">메모</label>
             <input
@@ -633,7 +768,7 @@ export default function RoastingRecorder({
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-              placeholder="메모 입력"
+              placeholder="메모 입력 (로스팅목록에 표시됩니다)"
               maxLength={100}
             />
           </div>
@@ -695,76 +830,28 @@ export default function RoastingRecorder({
             )}
           </div>
 
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">원산지 (자동 입력됨)</label>
-            <input
-              type="text"
-              value={beanOrigin}
-              onChange={(e) => setBeanOrigin(e.target.value)}
-              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-gray-50 text-lg font-medium shadow-sm"
-              placeholder="자동으로 채워집니다"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">투입량 (g) *</label>
-            <select
-              value={selectedWeight}
-              onChange={(e) => handleWeightChange(Number(e.target.value))}
-              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-            >
-              <option value={0}>선택하세요</option>
-              {WEIGHT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {selectedWeight === 0 && (
-              <input
-                type="number"
-                value={greenWeight}
-                onChange={(e) => setGreenWeight(e.target.value)}
-                placeholder="직접 입력 (g)"
-                className="w-full mt-3 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg font-medium shadow-sm"
-              />
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">배출량 (g) - 자동계산 85%</label>
-            <input
-              type="number"
-              value={roastedWeight}
-              onChange={(e) => setRoastedWeight(e.target.value)}
-              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-              placeholder="자동계산됨 (수정가능)"
-            />
-            {yieldPercent && (
-              <p className="text-xl font-bold text-green-700 bg-green-50 p-3 rounded-xl text-center shadow-sm border border-green-200">
-                수율: {yieldPercent}%
-              </p>
-            )}
-          </div>
-
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-700">초기 세팅값</h3>
-              <div className="flex gap-2">
-                {[1, 2, 3].map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => handlePresetChange(preset)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                      currentPreset === preset
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                    type="button"
-                  >
-                    {preset} - {presets ? presets[preset].name : storedPresets[preset].name || `세팅${preset}`}
-                  </button>
-                ))}
+              <h3 className="text-lg font-bold mb-6 text-gray-800">초기 세팅값</h3>
+              <div className="flex gap-2 flex-wrap">
+                {Object.keys(presets || storedPresets).map((preset) => {
+                  const presetNum = Number(preset)
+                  return (
+                    <button
+                      key={preset}
+                      onClick={() => handlePresetChange(presetNum)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        currentPreset === presetNum
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                      type="button"
+                    >
+                      {presetNum} -{" "}
+                      {presets ? presets[presetNum].name : storedPresets[presetNum].name || `세팅${presetNum}`}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -831,11 +918,20 @@ export default function RoastingRecorder({
                 setTemps({})
                 setIsRunning(false)
                 setStatusMessage("")
+                setFirstCrackTime("")
+                setSecondCrackTime("")
               }}
               className="px-10 py-5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-bold text-xl hover:from-gray-600 hover:to-gray-700 transition-all shadow-md transform hover:scale-105"
               type="button"
             >
               리셋
+            </button>
+            <button
+              onClick={handleFirstCrack}
+              className="px-8 py-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold text-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-md transform hover:scale-105"
+              type="button"
+            >
+              1st 크랙
             </button>
             <button
               onClick={handleEndRoast}
@@ -844,12 +940,33 @@ export default function RoastingRecorder({
             >
               배출
             </button>
+            <button
+              onClick={handleSecondCrack}
+              className="px-8 py-5 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-xl font-bold text-lg hover:from-amber-700 hover:to-amber-800 transition-all shadow-md transform hover:scale-105"
+              type="button"
+            >
+              2nd 크랙
+            </button>
           </div>
+
+          {(firstCrackTime || secondCrackTime) && (
+            <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+              <h3 className="text-lg font-bold text-orange-800 mb-2">크랙 기록</h3>
+              <div className="space-y-1">
+                {firstCrackTime && (
+                  <p className="text-base font-semibold text-orange-700">1st 크랙: {firstCrackTime}</p>
+                )}
+                {secondCrackTime && (
+                  <p className="text-base font-semibold text-orange-700">2nd 크랙: {secondCrackTime}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">온도 기록</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">온도 기록</h2>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {TEMP_BUTTONS.map((temp) => {
             const isRecorded = temps[temp]
@@ -929,7 +1046,7 @@ export default function RoastingRecorder({
 
       <div className="flex gap-6 justify-center pb-8">
         <button
-          onClick={handleSave}
+          onClick={handleSaveRecord}
           className="px-12 py-5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-bold text-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg transform hover:scale-105"
           type="button"
         >
@@ -997,6 +1114,21 @@ export default function RoastingRecorder({
           </div>
         </div>
       )}
+
+      <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">배출 직전 최종 온도</h2>
+        <div className="space-y-3">
+          <label className="block text-base font-semibold text-gray-700">배출 직전 최종 온도(°C)</label>
+          <input
+            type="number"
+            value={finalTemp}
+            onChange={(e) => setFinalTemp(e.target.value)}
+            className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+            placeholder="최종 온도 입력"
+            step="0.1"
+          />
+        </div>
+      </div>
     </div>
   )
 }
