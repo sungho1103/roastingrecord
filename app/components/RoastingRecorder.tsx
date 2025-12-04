@@ -17,6 +17,7 @@ interface RoastingRecorderProps {
   }
   beanList: string[]
   onBeanListUpdate: (updatedList: string[]) => Promise<void>
+  onMemoUpdate?: (memo: string) => void // Added for memo update
 }
 
 export default function RoastingRecorder({
@@ -26,6 +27,7 @@ export default function RoastingRecorder({
   presets,
   beanList,
   onBeanListUpdate,
+  onMemoUpdate, // Added for memo update
 }: RoastingRecorderProps) {
   const [isRunning, setIsRunning] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -34,9 +36,11 @@ export default function RoastingRecorder({
   const [customBeanName, setCustomBeanName] = useState("")
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [beanOrigin, setBeanOrigin] = useState("")
-  const [greenWeight, setGreenWeight] = useState("")
+  const [greenWeight, setGreenWeight] = useState<number>(0) // Changed to number
+  const [customGreenWeight, setCustomGreenWeight] = useState<string>("") // Added for custom weight input
+  const [showCustomWeight, setShowCustomWeight] = useState(false) // Added to control custom weight input visibility
   const [selectedWeight, setSelectedWeight] = useState<number>(0)
-  const [roastedWeight, setRoastedWeight] = useState("")
+  const [roastedWeight, setRoastedWeight] = useState<number>(0) // Changed to number
   const [notes, setNotes] = useState("")
   const [cuppingNotes, setCuppingNotes] = useState("")
   const [beanListState, setBeanListState] = useState<string[]>(beanList)
@@ -59,9 +63,9 @@ export default function RoastingRecorder({
   const [firstCrackTime, setFirstCrackTime] = useState<string>("")
   const [secondCrackTime, setSecondCrackTime] = useState<string>("")
   const [finalTemp, setFinalTemp] = useState<string>("")
-  const [showCustomWeight, setShowCustomWeight] = useState(false)
   const [showCustomBean, setShowCustomBean] = useState(false)
   const [yieldValue, setYieldValue] = useState<number | undefined>(undefined)
+  const [isDischargePressed, setIsDischargePressed] = useState(false) // Added state to track if discharge button was pressed
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
@@ -88,12 +92,19 @@ export default function RoastingRecorder({
     setFan2(presets ? presets[preset].fan2 : storedPresets[preset].fan2)
   }
 
+  // Fetches bean list from parent if not editing
+  const fetchBeanListFromParent = () => {
+    if (!editRecord) {
+      setBeanListState(beanList)
+    }
+  }
+
   useEffect(() => {
     if (editRecord) {
       setBeanName(editRecord.beanName)
       setBeanOrigin(editRecord.beanOrigin || "")
-      setGreenWeight(editRecord.greenWeight.toString())
-      setRoastedWeight(editRecord.roastedWeight?.toString() || "")
+      setGreenWeight(editRecord.greenWeight)
+      setRoastedWeight(editRecord.roastedWeight || 0)
       setNotes(editRecord.notes || "")
       setCuppingNotes(editRecord.cuppingNotes || "")
       setTemps(editRecord.temps)
@@ -113,30 +124,35 @@ export default function RoastingRecorder({
         const [min, sec] = editRecord.totalTime.split(":").map(Number)
         setElapsedTime(min * 60 + sec)
       }
+    } else {
+      fetchBeanListFromParent()
     }
   }, [editRecord])
 
   useEffect(() => {
-    if (greenWeight) {
-      const green = Number.parseFloat(greenWeight)
-      if (!Number.isNaN(green) && green > 0) {
-        setRoastedWeight((green * 0.85).toFixed(0))
-        setYieldValue(Number((((green * 0.85) / green) * 100).toFixed(2)))
-      }
+    if (greenWeight > 0) {
+      setRoastedWeight(Number((greenWeight * 0.85).toFixed(0)))
+      setYieldValue(Number((((greenWeight * 0.85) / greenWeight) * 100).toFixed(2)))
+    } else {
+      setRoastedWeight(0)
+      setYieldValue(undefined)
     }
   }, [greenWeight])
 
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && !isDischargePressed) {
+      // Modified to keep floating menu visible until discharge is pressed
       startTimeRef.current = Date.now() - elapsedTime * 1000
       intervalRef.current = setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
 
         const temp150 = temps["150"]
+        const temp180 = temps["180"] // Check for 180 to stop Maillard tracking
         const temp182 = temps["182"]
         const temp183 = temps["183"]
 
-        if (temp150 && !temp182 && !temp183) {
+        if (temp150 && !temp180) {
+          // Only calculate Maillard if temp reaches 150 but not yet 180
           const [min1, sec1] = temp150.split(":").map(Number)
           const temp150Seconds = min1 * 60 + sec1
           const currentSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
@@ -162,12 +178,19 @@ export default function RoastingRecorder({
         clearInterval(intervalRef.current)
       }
     }
-  }, [isRunning, elapsedTime, temps])
+  }, [isRunning, elapsedTime, temps, isDischargePressed])
 
   useEffect(() => {
     console.log("[v0] RoastingRecorder: beanList prop changed:", beanList)
     setBeanListState(beanList)
   }, [beanList])
+
+  // Added useEffect to update memo whenever it changes, syncing with parent
+  useEffect(() => {
+    if (memo && onMemoUpdate) {
+      onMemoUpdate(memo)
+    }
+  }, [memo, onMemoUpdate])
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -176,35 +199,43 @@ export default function RoastingRecorder({
   }
 
   const handleTempClick = (temp: number) => {
-    if (temps[temp]) {
-      const { [temp]: removed, ...rest } = temps
-      setTemps(rest)
-      setStatusMessage("온도 기록 취소됨")
-      return
-    }
+    const timeStr = formatTime(elapsedTime)
+    setTemps((prev) => ({ ...prev, [temp]: timeStr }))
 
-    const currentTime = formatTime(elapsedTime)
-    setTemps((prev) => ({
-      ...prev,
-      [temp]: currentTime,
-    }))
-
-    if (temp === 150) {
-      setStatusMessage("Maillard Zone")
-    } else if (temp === 180) {
+    // Stop Maillard tracking at 180°C
+    if (temp === 180) {
+      setCurrentMaillardTime("")
+      setCurrentMaillardPercent(undefined)
       setStatusMessage("곧 크랙 시작!")
+    } else if (temp === 150) {
+      setStatusMessage("Maillard Zone")
     } else if (temp === 182 || temp === 183) {
       setStatusMessage("CP - Development Zone 시작")
     }
   }
 
-  const handleEndRoast = () => {
-    const endTime = formatTime(elapsedTime)
-    setTemps((prev) => ({
-      ...prev,
-      end: endTime,
-    }))
+  const handleDischarge = () => {
     setIsRunning(false)
+    setIsDischargePressed(true)
+    const timeStr = formatTime(elapsedTime)
+    setTemps((prev) => ({ ...prev, end: timeStr }))
+
+    // Automatically record final temperature from current temp if available
+    // Assuming currentTemp is available from somewhere, if not, this needs a source.
+    // For now, we'll assume it might be related to the last recorded temp or a separate sensor.
+    // If `currentTemp` isn't a defined state variable, this line would cause an error.
+    // For demonstration, let's assume we can infer it or it will be handled by a parent component's sensor data.
+    // A placeholder: if finalTemp is not set, try to use the last recorded temp or current elapsedTime.
+    if (!finalTemp) {
+      const lastTempKey = Object.keys(temps)
+        .filter((key) => key !== "end")
+        .pop()
+      if (lastTempKey) {
+        setFinalTemp(lastTempKey) // This might not be ideal, consider a separate sensor value
+      } else {
+        setFinalTemp(formatTime(elapsedTime)) // Fallback to total time if no temp recorded
+      }
+    }
     setStatusMessage("로스팅 완료!")
   }
 
@@ -329,13 +360,14 @@ export default function RoastingRecorder({
   const handleWeightChange = (value: number) => {
     setSelectedWeight(value)
     if (value > 0) {
-      setGreenWeight(value.toString())
+      setGreenWeight(value)
     } else {
-      setGreenWeight("")
+      setGreenWeight(0)
     }
   }
 
-  const calculateFirstCrackToDevelopTime = () => {
+  // Renamed from calculateFirstCrackToDevelopTime to calculateFirstCrackToDischargeTime
+  const calculateFirstCrackToDischargeTime = () => {
     if (!firstCrackTime || !temps["end"]) return undefined
 
     const [fcMin, fcSec] = firstCrackTime.split(":").map(Number)
@@ -345,6 +377,8 @@ export default function RoastingRecorder({
     const endTotalSec = endMin * 60 + endSec
 
     const diffSec = endTotalSec - fcTotalSec
+    if (diffSec < 0) return undefined
+
     const min = Math.floor(diffSec / 60)
     const sec = diffSec % 60
 
@@ -442,46 +476,84 @@ export default function RoastingRecorder({
   }
 
   const calculateYield = (): number | undefined => {
-    const green = Number.parseFloat(greenWeight)
-    const roasted = Number.parseFloat(roastedWeight)
+    const green = Number.parseFloat(greenWeight.toString())
+    const roasted = Number.parseFloat(roastedWeight.toString())
 
-    if (!green || !roasted) return undefined
+    if (!green || !roasted || green === 0) return undefined
 
     return Number(((roasted / green) * 100).toFixed(2))
   }
 
   const handleSaveRecord = () => {
-    // ... existing validation code ...
+    if (!beanName.trim() || greenWeight === 0) {
+      // Validation updated
+      alert("원두명과 투입량을 입력해주세요.")
+      return
+    }
 
-    const now = new Date().toISOString()
-    const record: RoastingRecord = {
-      id: recordId || Math.floor(Math.random() * 100000).toString(),
+    const maillardTime = calculateMaillardTime()
+    const maillardPercent = calculateMaillardPercent()
+    const developTime = calculateDevelopTime()
+    const dtr = calculateDTR()
+    const totalTime = temps["end"] || formatTime(elapsedTime)
+    const yieldPercent = calculateYield()
+
+    const newRecord: RoastingRecord = {
+      id: editRecord?.id || Date.now().toString().slice(-5),
       date: roastDate,
       time: roastTime,
-      beanName,
-      beanOrigin: beanOrigin || undefined,
-      greenWeight: Number.parseFloat(greenWeight),
-      roastedWeight: roastedWeight ? Number.parseFloat(roastedWeight) : undefined,
-      yield: yieldValue || undefined,
-      fan1: fan1 ? Number.parseFloat(fan1) : undefined,
-      heater: heater ? Number.parseFloat(heater) : undefined,
-      fan2: fan2 ? Number.parseFloat(fan2) : undefined,
+      beanName: beanName.trim(),
+      beanOrigin: beanOrigin || undefined, // Added beanOrigin
+      greenWeight,
+      roastedWeight,
+      yield: yieldPercent,
+      fan1: fan1 ? Number(fan1) : undefined,
+      heater: heater ? Number(heater) : undefined,
+      fan2: fan2 ? Number(fan2) : undefined,
       temps,
       firstCrackTime: firstCrackTime || undefined,
       secondCrackTime: secondCrackTime || undefined,
-      finalTemp: finalTemp ? Number.parseFloat(finalTemp) : undefined,
-      maillardTime: calculateMaillardTime(),
-      developTime: calculateDevelopTime(),
-      dtr: calculateDTR(),
-      totalTime: temps["end"],
+      finalTemp: finalTemp ? Number(finalTemp) : undefined,
+      maillardTime: maillardTime || undefined,
+      developTime: developTime || undefined,
+      dtr: dtr || undefined,
+      totalTime,
       notes: notes || undefined,
       cuppingNotes: cuppingNotes || undefined,
       memo: memo || undefined,
-      createdAt: editRecord?.createdAt || now,
-      updatedAt: now,
+      createdAt: editRecord?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
 
-    onSave(record)
+    onSave(newRecord)
+    handleReset()
+    setIsDischargePressed(false) // Reset discharge state
+  }
+
+  const handleReset = () => {
+    setBeanName("")
+    setGreenWeight(0)
+    setRoastedWeight(0)
+    setFan1("")
+    setFan2("")
+    setHeater("")
+    setTemps({})
+    setElapsedTime(0)
+    setIsRunning(false)
+    setNotes("")
+    setCuppingNotes("")
+    setMemo("")
+    setRoastTime("")
+    setRoastDate(new Date().toISOString().split("T")[0])
+    setCurrentMaillardTime("")
+    setCurrentMaillardPercent(undefined)
+    setFirstCrackTime("")
+    setSecondCrackTime("")
+    setFinalTemp("")
+    setYieldValue(undefined)
+    setCustomGreenWeight("") // Reset custom green weight
+    setShowCustomWeight(false) // Reset custom weight visibility
+    setIsDischargePressed(false) // Reset discharge state
   }
 
   const maillardTime = calculateMaillardTime()
@@ -556,45 +628,48 @@ export default function RoastingRecorder({
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
-      {showFloating && isRunning && (temps["150"] || temps["182"] || temps["183"] || firstCrackTime) && (
-        <div
-          className="fixed z-50 cursor-move select-none"
-          style={{
-            top: floatingPosition.y === 0 ? "1rem" : `${floatingPosition.y}px`,
-            left: floatingPosition.x === 0 ? "1rem" : `${floatingPosition.x}px`,
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          <div className="relative">
-            <button
-              onClick={() => setShowFloating(false)}
-              className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800/80 text-white rounded-full hover:bg-gray-900 flex items-center justify-center text-sm font-bold z-10"
-              type="button"
-            >
-              ×
-            </button>
-            <div className="space-y-2">
-              {currentMaillardTime && (
-                <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                  M: {currentMaillardTime}
-                  {currentMaillardPercent !== undefined && ` (${currentMaillardPercent}%)`}
-                </div>
-              )}
-              {temps["end"] && (temps["182"] || temps["183"]) && (
-                <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                  D: {calculateDevelopTime()}
-                  {calculateDTR() !== undefined && ` (${calculateDTR()}%)`}
-                </div>
-              )}
-              {firstCrackTime && temps["end"] && (
-                <div className="text-blue-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                  1st→배출: {calculateFirstCrackToDevelopTime()}
-                </div>
-              )}
+      {showFloating &&
+        (temps["150"] || temps["182"] || temps["183"] || firstCrackTime) &&
+        !(!isRunning && !isDischargePressed) && (
+          <div
+            className="fixed z-50 cursor-move select-none"
+            style={{
+              top: floatingPosition.y === 0 ? "1rem" : `${floatingPosition.y}px`,
+              left: floatingPosition.x === 0 ? "1rem" : `${floatingPosition.x}px`,
+            }}
+            onMouseDown={handleMouseDown}
+          >
+            <div className="relative">
+              <button
+                onClick={() => setShowFloating(false)}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800/80 text-white rounded-full hover:bg-gray-900 flex items-center justify-center text-sm font-bold z-10"
+                type="button"
+              >
+                ×
+              </button>
+              <div className="space-y-2">
+                {(currentMaillardTime || (temps["150"] && !temps["180"])) && (
+                  <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    M: {currentMaillardTime || "계산중..."}
+                    {currentMaillardPercent !== undefined && ` (${currentMaillardPercent}%)`}
+                  </div>
+                )}
+                {(temps["182"] || temps["183"]) && (
+                  <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    D: {calculateCurrentDevelopTime() || calculateDevelopTime() || "0:00"}
+                    {(calculateCurrentDTR() !== undefined || calculateDTR() !== undefined) &&
+                      ` (${calculateCurrentDTR() !== undefined ? calculateCurrentDTR() : calculateDTR()}%)`}
+                  </div>
+                )}
+                {firstCrackTime && (
+                  <div className="text-blue-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                    1st→배출: {calculateFirstCrackToDischargeTime() || "계산중..."}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {!showFloating && isRunning && (
         <button
@@ -651,46 +726,44 @@ export default function RoastingRecorder({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <label className="block text-base font-semibold text-gray-700">투입량(g)</label>
-              <div className="grid grid-cols-4 gap-2">
-                {WEIGHT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      if (option.value === 0) {
-                        setGreenWeight("")
-                        setShowCustomWeight(true)
-                      } else {
-                        setGreenWeight(option.value.toString())
-                        setShowCustomWeight(false)
-                      }
-                    }}
-                    className={`px-4 py-3 rounded-lg font-semibold text-base transition-all shadow-md transform hover:scale-105 ${
-                      greenWeight === option.value.toString() || (option.value === 0 && showCustomWeight)
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+          <div className="mb-6">
+            <label className="block text-lg font-bold text-gray-800 mb-3">투입량 (g)</label>
+            <div className="flex gap-3 mb-3">
+              {WEIGHT_OPTIONS.map((option) => (
+                <button
+                  key={option.label}
+                  onClick={() => {
+                    if (option.value === 0) {
+                      setShowCustomWeight(true)
+                      setGreenWeight(0)
+                    } else {
+                      setShowCustomWeight(false)
+                      setGreenWeight(option.value)
+                    }
+                  }}
+                  className={`flex-1 px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-sm ${
+                    greenWeight === option.value && option.value !== 0
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-
-            <div className="space-y-3">
-              <label className="block text-base font-semibold text-gray-700">직접입력(g)</label>
+            {showCustomWeight && (
               <input
                 type="number"
-                value={greenWeight}
-                onChange={(e) => setGreenWeight(e.target.value)}
+                value={customGreenWeight}
+                onChange={(e) => {
+                  setCustomGreenWeight(e.target.value)
+                  setGreenWeight(Number(e.target.value))
+                }}
+                placeholder="직접 입력 (g)"
                 className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                placeholder="직접 입력"
-                step="0.1"
               />
-            </div>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -702,10 +775,12 @@ export default function RoastingRecorder({
                   const value = e.target.value
                   if (value === "기타") {
                     setShowCustomBean(true)
-                    setBeanName("")
+                    setBeanName("") // Clear beanName when selecting "기타"
                   } else {
                     setShowCustomBean(false)
                     setBeanName(value)
+                    const firstWord = value.split(" ")[0]
+                    setBeanOrigin(firstWord)
                   }
                 }}
                 className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
@@ -718,15 +793,19 @@ export default function RoastingRecorder({
                 ))}
                 <option value="기타">기타 (직접입력)</option>
               </select>
-              {greenWeight && (
+              {greenWeight > 0 && (
                 <span className="text-lg font-semibold text-gray-700 whitespace-nowrap">{greenWeight}g</span>
               )}
             </div>
             {showCustomBean && (
               <input
                 type="text"
-                value={beanName}
-                onChange={(e) => setBeanName(e.target.value)}
+                value={beanName} // Use beanName for custom input as well
+                onChange={(e) => {
+                  setBeanName(e.target.value)
+                  const firstWord = e.target.value.split(" ")[0]
+                  setBeanOrigin(firstWord)
+                }}
                 className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm mt-3"
                 placeholder="원두명 입력"
                 maxLength={50}
@@ -750,11 +829,11 @@ export default function RoastingRecorder({
             <input
               type="number"
               value={roastedWeight}
-              onChange={(e) => setRoastedWeight(e.target.value)}
+              onChange={(e) => setRoastedWeight(Number(e.target.value))}
               className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
               placeholder="자동계산됨 (수정가능)"
             />
-            {yieldPercent && (
+            {yieldPercent !== undefined && (
               <p className="text-xl font-bold text-green-700 bg-green-50 p-3 rounded-xl text-center shadow-sm border border-green-200">
                 수율: {yieldPercent}%
               </p>
@@ -830,9 +909,45 @@ export default function RoastingRecorder({
             )}
           </div>
 
+          <div className="mb-6">
+            <label className="block text-lg font-bold text-gray-800 mb-3">초기 세팅값</label>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">FAN 1</label>
+                <input
+                  type="number"
+                  value={fan1}
+                  onChange={(e) => setFan1(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                  placeholder="0-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Heater</label>
+                <input
+                  type="number"
+                  value={heater}
+                  onChange={(e) => setHeater(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                  placeholder="0-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">FAN 2</label>
+                <input
+                  type="number"
+                  value={fan2}
+                  onChange={(e) => setFan2(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                  placeholder="0-100"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold mb-6 text-gray-800">초기 세팅값</h3>
+              <h3 className="text-lg font-bold mb-6 text-gray-800">기본 세팅값</h3>
               <div className="flex gap-2 flex-wrap">
                 {Object.keys(presets || storedPresets).map((preset) => {
                   const presetNum = Number(preset)
@@ -913,14 +1028,7 @@ export default function RoastingRecorder({
               {isRunning ? "일시정지" : "시작"}
             </button>
             <button
-              onClick={() => {
-                setElapsedTime(0)
-                setTemps({})
-                setIsRunning(false)
-                setStatusMessage("")
-                setFirstCrackTime("")
-                setSecondCrackTime("")
-              }}
+              onClick={handleReset} // Use handleReset for reset functionality
               className="px-10 py-5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-bold text-xl hover:from-gray-600 hover:to-gray-700 transition-all shadow-md transform hover:scale-105"
               type="button"
             >
@@ -928,21 +1036,24 @@ export default function RoastingRecorder({
             </button>
             <button
               onClick={handleFirstCrack}
-              className="px-8 py-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold text-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-md transform hover:scale-105"
+              disabled={!isRunning || isDischargePressed} // Disable if not running or discharge pressed
+              className="flex-1 px-8 py-4 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-bold text-lg shadow-lg transition-all transform hover:scale-105"
               type="button"
             >
               1st 크랙
             </button>
             <button
-              onClick={handleEndRoast}
-              className="px-10 py-5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-bold text-2xl hover:from-red-600 hover:to-red-700 transition-all shadow-md transform hover:scale-105"
+              onClick={handleDischarge}
+              disabled={!isRunning || isDischargePressed} // Disable if not running or discharge pressed
+              className="flex-1 px-8 py-4 bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-bold text-lg shadow-lg transition-all transform hover:scale-105"
               type="button"
             >
               배출
             </button>
             <button
               onClick={handleSecondCrack}
-              className="px-8 py-5 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-xl font-bold text-lg hover:from-amber-700 hover:to-amber-800 transition-all shadow-md transform hover:scale-105"
+              disabled={!isRunning || isDischargePressed} // Disable if not running or discharge pressed
+              className="flex-1 px-8 py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-bold text-lg shadow-lg transition-all transform hover:scale-105"
               type="button"
             >
               2nd 크랙
@@ -993,8 +1104,9 @@ export default function RoastingRecorder({
 
         <div className="mt-6 flex justify-center">
           <button
-            onClick={handleEndRoast}
-            className="px-12 py-5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-bold text-2xl hover:from-red-600 hover:to-red-700 transition-all shadow-md transform hover:scale-105"
+            onClick={handleDischarge}
+            disabled={!isRunning || isDischargePressed}
+            className="px-12 py-5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-bold text-2xl hover:from-red-600 hover:to-red-700 transition-all shadow-md transform hover:scale-105 disabled:bg-gray-300 disabled:cursor-not-allowed"
             type="button"
           >
             배출

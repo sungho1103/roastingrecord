@@ -151,6 +151,7 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
                     >
                       {record.beanName}
                     </button>
+                    <div className="text-sm text-gray-500 mt-1">{record.greenWeight}g</div>
                   </td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.fan1 || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.heater || "-"}</td>

@@ -18,11 +18,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
-  const [presets, setPresets] = useState({
-    1: { name: "세팅 1", fan1: "75", heater: "90", fan2: "2.5" },
-    2: { name: "세팅 2", fan1: "80", heater: "85", fan2: "3.0" },
-    3: { name: "세팅 3", fan1: "70", heater: "95", fan2: "2.0" },
-  })
+  const [presets, setPresets] = useState<{
+    1: { name: string; fan1: string; heater: string; fan2: string }
+    2: { name: string; fan1: string; heater: string; fan2: string }
+    3: { name: string; fan1: string; heater: string; fan2: string }
+  }>()
+  const [isEditingPresets, setIsEditingPresets] = useState(false)
+  const [currentMemo, setCurrentMemo] = useState<string>("")
 
   useEffect(() => {
     const savedPresets = localStorage.getItem("roasting_presets")
@@ -374,6 +376,11 @@ export default function Home() {
     )
   })
 
+  const handleMemoUpdate = (memo: string) => {
+    console.log("[v0] Memo updated:", memo)
+    setCurrentMemo(memo)
+  }
+
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 shadow-md border-b-2 border-gray-200">
@@ -491,6 +498,7 @@ export default function Home() {
             presets={presets}
             beanList={beanList}
             onBeanListUpdate={handleBeanListUpdate}
+            onMemoUpdate={handleMemoUpdate}
           />
         ) : null}
       </main>
@@ -537,11 +545,11 @@ export default function Home() {
                     <label className="block text-sm font-semibold text-gray-600 mb-2">세팅 이름</label>
                     <input
                       type="text"
-                      value={presets[presetNum as keyof typeof presets].name}
+                      value={presets?.[presetNum].name}
                       onChange={(e) =>
                         setPresets({
                           ...presets,
-                          [presetNum]: { ...presets[presetNum as keyof typeof presets], name: e.target.value },
+                          [presetNum]: { ...presets?.[presetNum], name: e.target.value },
                         })
                       }
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg font-semibold"
@@ -553,11 +561,11 @@ export default function Home() {
                       <label className="block text-sm font-semibold text-gray-600 mb-2">F1</label>
                       <input
                         type="text"
-                        value={presets[presetNum as keyof typeof presets].fan1}
+                        value={presets?.[presetNum].fan1}
                         onChange={(e) =>
                           setPresets({
                             ...presets,
-                            [presetNum]: { ...presets[presetNum as keyof typeof presets], fan1: e.target.value },
+                            [presetNum]: { ...presets?.[presetNum], fan1: e.target.value },
                           })
                         }
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
@@ -567,11 +575,11 @@ export default function Home() {
                       <label className="block text-sm font-semibold text-gray-600 mb-2">Ht</label>
                       <input
                         type="text"
-                        value={presets[presetNum as keyof typeof presets].heater}
+                        value={presets?.[presetNum].heater}
                         onChange={(e) =>
                           setPresets({
                             ...presets,
-                            [presetNum]: { ...presets[presetNum as keyof typeof presets], heater: e.target.value },
+                            [presetNum]: { ...presets?.[presetNum], heater: e.target.value },
                           })
                         }
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
@@ -581,11 +589,11 @@ export default function Home() {
                       <label className="block text-sm font-semibold text-gray-600 mb-2">F2</label>
                       <input
                         type="text"
-                        value={presets[presetNum as keyof typeof presets].fan2}
+                        value={presets?.[presetNum].fan2}
                         onChange={(e) =>
                           setPresets({
                             ...presets,
-                            [presetNum]: { ...presets[presetNum as keyof typeof presets], fan2: e.target.value },
+                            [presetNum]: { ...presets?.[presetNum], fan2: e.target.value },
                           })
                         }
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
