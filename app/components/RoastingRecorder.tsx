@@ -57,6 +57,10 @@ export default function RoastingRecorder({
   const [showFloating, setShowFloating] = useState(true)
   const [currentMaillardTime, setCurrentMaillardTime] = useState<string>("")
   const [currentMaillardPercent, setCurrentMaillardPercent] = useState<number | undefined>(undefined)
+  const [maillardFrozenTime, setMaillardFrozenTime] = useState<string>("")
+  const [maillardFrozenPercent, setMaillardFrozenPercent] = useState<number | undefined>(undefined)
+  const [currentDevelopTime, setCurrentDevelopTime] = useState<string>("")
+  const [currentDevelopPercent, setCurrentDevelopPercent] = useState<number | undefined>(undefined)
   const [floatingPosition, setFloatingPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -66,6 +70,8 @@ export default function RoastingRecorder({
   const [showCustomBean, setShowCustomBean] = useState(false)
   const [yieldValue, setYieldValue] = useState<number | undefined>(undefined)
   const [isDischargePressed, setIsDischargePressed] = useState(false) // Added state to track if discharge button was pressed
+
+  const [lastRecordedTemp, setLastRecordedTemp] = useState<number | undefined>(undefined)
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
@@ -119,6 +125,7 @@ export default function RoastingRecorder({
       setSecondCrackTime(editRecord.secondCrackTime || "")
       setFinalTemp(editRecord.finalTemp?.toString() || "")
       setYieldValue(editRecord.yield)
+      setLastRecordedTemp(editRecord.finalTemp ? Number(editRecord.finalTemp) : undefined) // Load lastRecordedTemp from editRecord
 
       if (editRecord.totalTime) {
         const [min, sec] = editRecord.totalTime.split(":").map(Number)
@@ -159,12 +166,38 @@ export default function RoastingRecorder({
           const diff = currentSeconds - temp150Seconds
 
           if (diff > 0) {
-            setCurrentMaillardTime(formatTime(diff))
-            setCurrentMaillardPercent(Number(((diff / currentSeconds) * 100).toFixed(2)))
+            const timeStr = formatTime(diff)
+            setCurrentMaillardTime(timeStr)
+            const percent = Number(((diff / currentSeconds) * 100).toFixed(2))
+            setCurrentMaillardPercent(percent)
+            // Store frozen values when 180 is about to be pressed
+            setMaillardFrozenTime(timeStr)
+            setMaillardFrozenPercent(percent)
           }
-        } else {
-          setCurrentMaillardTime("")
-          setCurrentMaillardPercent(undefined)
+        } else if (temp150 && temp180) {
+          const [min1, sec1] = temp150.split(":").map(Number)
+          const [min2, sec2] = temp180.split(":").map(Number)
+          const diff = min2 * 60 + sec2 - (min1 * 60 + sec1)
+          const timeStr = formatTime(diff)
+          setMaillardFrozenTime(timeStr)
+          const currentSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
+          const percent = Number(((diff / currentSeconds) * 100).toFixed(2))
+          setMaillardFrozenPercent(percent)
+        }
+
+        const startTemp = temp182 || temp183
+        if (startTemp) {
+          const [min1, sec1] = startTemp.split(":").map(Number)
+          const startSeconds = min1 * 60 + sec1
+          const currentSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
+          const diff = currentSeconds - startSeconds
+
+          if (diff > 0) {
+            const timeStr = formatTime(diff)
+            setCurrentDevelopTime(timeStr)
+            const percent = Number(((diff / currentSeconds) * 100).toFixed(2))
+            setCurrentDevelopPercent(percent)
+          }
         }
       }, 100)
     } else {
@@ -178,7 +211,7 @@ export default function RoastingRecorder({
         clearInterval(intervalRef.current)
       }
     }
-  }, [isRunning, elapsedTime, temps, isDischargePressed])
+  }, [isRunning, temps, elapsedTime])
 
   useEffect(() => {
     console.log("[v0] RoastingRecorder: beanList prop changed:", beanList)
@@ -202,10 +235,10 @@ export default function RoastingRecorder({
     const timeStr = formatTime(elapsedTime)
     setTemps((prev) => ({ ...prev, [temp]: timeStr }))
 
-    // Stop Maillard tracking at 180°C
+    setLastRecordedTemp(temp)
+
     if (temp === 180) {
-      setCurrentMaillardTime("")
-      setCurrentMaillardPercent(undefined)
+      // Maillard time is already stored in frozen state, just update status
       setStatusMessage("곧 크랙 시작!")
     } else if (temp === 150) {
       setStatusMessage("Maillard Zone")
@@ -220,22 +253,11 @@ export default function RoastingRecorder({
     const timeStr = formatTime(elapsedTime)
     setTemps((prev) => ({ ...prev, end: timeStr }))
 
-    // Automatically record final temperature from current temp if available
-    // Assuming currentTemp is available from somewhere, if not, this needs a source.
-    // For now, we'll assume it might be related to the last recorded temp or a separate sensor.
-    // If `currentTemp` isn't a defined state variable, this line would cause an error.
-    // For demonstration, let's assume we can infer it or it will be handled by a parent component's sensor data.
-    // A placeholder: if finalTemp is not set, try to use the last recorded temp or current elapsedTime.
-    if (!finalTemp) {
-      const lastTempKey = Object.keys(temps)
-        .filter((key) => key !== "end")
-        .pop()
-      if (lastTempKey) {
-        setFinalTemp(lastTempKey) // This might not be ideal, consider a separate sensor value
-      } else {
-        setFinalTemp(formatTime(elapsedTime)) // Fallback to total time if no temp recorded
-      }
+    if (lastRecordedTemp !== undefined) {
+      setFinalTemp(lastRecordedTemp.toString())
+      console.log("[v0] Final temp set to:", lastRecordedTemp)
     }
+
     setStatusMessage("로스팅 완료!")
   }
 
@@ -554,6 +576,11 @@ export default function RoastingRecorder({
     setCustomGreenWeight("") // Reset custom green weight
     setShowCustomWeight(false) // Reset custom weight visibility
     setIsDischargePressed(false) // Reset discharge state
+    setLastRecordedTemp(undefined) // Reset last recorded temp
+    setMaillardFrozenTime("") // Reset frozen maillard time
+    setMaillardFrozenPercent(undefined) // Reset frozen maillard percent
+    setCurrentDevelopTime("") // Reset current develop time
+    setCurrentDevelopPercent(undefined) // Reset current develop percent
   }
 
   const maillardTime = calculateMaillardTime()
@@ -561,14 +588,14 @@ export default function RoastingRecorder({
   const dtr = calculateDTR()
   const yieldPercent = calculateYield()
 
-  const currentDevelopTime = calculateCurrentDevelopTime()
-  const currentDTR = calculateCurrentDTR()
-  const maillardPercent = calculateMaillardPercent()
+  const currentDevelopTimeCalc = calculateCurrentDevelopTime()
+  const currentDTRCalc = calculateCurrentDTR()
+  const maillardPercentCalc = calculateMaillardPercent()
 
   const highlightedTemps = [100, 130, 150, 180, 182, 183, 190]
 
-  const displayMaillardTime = currentMaillardTime || maillardTime
-  const displayMaillardPercent = currentMaillardPercent !== undefined ? currentMaillardPercent : maillardPercent
+  const displayMaillardTime = currentMaillardTime || maillardFrozenTime
+  const displayMaillardPercent = currentMaillardPercent !== undefined ? currentMaillardPercent : maillardFrozenPercent
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -630,7 +657,7 @@ export default function RoastingRecorder({
     <div className="space-y-8 max-w-5xl mx-auto">
       {showFloating &&
         (temps["150"] || temps["182"] || temps["183"] || firstCrackTime) &&
-        !(!isRunning && !isDischargePressed) && (
+        (isRunning || isDischargePressed) && (
           <div
             className="fixed z-50 cursor-move select-none"
             style={{
@@ -648,17 +675,20 @@ export default function RoastingRecorder({
                 ×
               </button>
               <div className="space-y-2">
-                {(currentMaillardTime || (temps["150"] && !temps["180"])) && (
+                {(maillardFrozenTime || currentMaillardTime) && (
                   <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    M: {currentMaillardTime || "계산중..."}
-                    {currentMaillardPercent !== undefined && ` (${currentMaillardPercent}%)`}
+                    M: {temps["180"] ? maillardFrozenTime : currentMaillardTime}
+                    {temps["180"]
+                      ? maillardFrozenPercent !== undefined && ` (${maillardFrozenPercent}%)`
+                      : currentMaillardPercent !== undefined && ` (${currentMaillardPercent}%)`}
                   </div>
                 )}
                 {(temps["182"] || temps["183"]) && (
                   <div className="text-red-600 font-black text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    D: {calculateCurrentDevelopTime() || calculateDevelopTime() || "0:00"}
-                    {(calculateCurrentDTR() !== undefined || calculateDTR() !== undefined) &&
-                      ` (${calculateCurrentDTR() !== undefined ? calculateCurrentDTR() : calculateDTR()}%)`}
+                    D: {isRunning ? currentDevelopTimeCalc : calculateDevelopTime() || "0:00"}
+                    {isRunning
+                      ? currentDevelopPercent !== undefined && ` (${currentDevelopPercent}%)`
+                      : calculateDTR() !== undefined && ` (${calculateDTR()}%)`}
                   </div>
                 )}
                 {firstCrackTime && (
@@ -671,7 +701,7 @@ export default function RoastingRecorder({
           </div>
         )}
 
-      {!showFloating && isRunning && (
+      {!showFloating && (isRunning || isDischargePressed) && (
         <button
           onClick={() => setShowFloating(true)}
           className="fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-600 z-50"
@@ -1231,14 +1261,9 @@ export default function RoastingRecorder({
         <h2 className="text-2xl font-bold text-gray-800 mb-6">배출 직전 최종 온도</h2>
         <div className="space-y-3">
           <label className="block text-base font-semibold text-gray-700">배출 직전 최종 온도(°C)</label>
-          <input
-            type="number"
-            value={finalTemp}
-            onChange={(e) => setFinalTemp(e.target.value)}
-            className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-            placeholder="최종 온도 입력"
-            step="0.1"
-          />
+          <div className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl bg-gray-50 text-lg font-bold text-gray-800">
+            {finalTemp ? `${finalTemp}°C` : "배출 버튼을 누르면 자동 기록됩니다"}
+          </div>
         </div>
       </div>
     </div>
