@@ -70,16 +70,21 @@ export default function Home() {
           heater: record.heater ? Number.parseFloat(record.heater) : undefined,
           fan2: record.fan2 ? Number.parseFloat(record.fan2) : undefined,
           temps: record.temps || {},
+          firstCrackTime: record.first_crack_time,
+          secondCrackTime: record.second_crack_time,
+          finalTemp: record.final_temp ? Number.parseFloat(record.final_temp) : undefined,
           maillardTime: record.maillard_time,
           developTime: record.develop_time,
           dtr: record.dtr ? Number.parseFloat(record.dtr) : undefined,
           totalTime: record.total_time,
           notes: record.notes,
           cuppingNotes: record.cupping_notes,
+          memo: record.memo,
           createdAt: record.created_at,
           updatedAt: record.updated_at,
         }))
         setRecords(formattedRecords)
+        console.log("[v0] Loaded records from Supabase:", formattedRecords.length, "records")
       }
     } catch (error) {
       console.error("Error fetching records:", error)
@@ -255,15 +260,21 @@ export default function Home() {
         heater: record.heater,
         fan2: record.fan2,
         temps: record.temps,
+        first_crack_time: record.firstCrackTime,
+        second_crack_time: record.secondCrackTime,
+        final_temp: record.finalTemp,
         maillard_time: record.maillardTime,
         develop_time: record.developTime,
         dtr: record.dtr,
         total_time: record.totalTime,
         notes: record.notes,
         cupping_notes: record.cuppingNotes,
+        memo: record.memo,
         created_at: record.createdAt,
         updated_at: new Date().toISOString(),
       }
+
+      console.log("[v0] Saving record to Supabase:", supabaseRecord)
 
       if (editingRecord) {
         if (editingRecord.id !== record.id) {
