@@ -19,7 +19,6 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
   const [isEditingPresets, setIsEditingPresets] = useState(false)
-  const [currentMemo, setCurrentMemo] = useState<string>("")
 
   useEffect(() => {
     fetchRecords()
@@ -55,14 +54,12 @@ export default function Home() {
           temps: record.temps || {},
           firstCrackTime: record.first_crack_time,
           secondCrackTime: record.second_crack_time,
-          finalTemp: record.final_temp ? Number.parseFloat(record.final_temp) : undefined,
           maillardTime: record.maillard_time,
           developTime: record.develop_time,
           dtr: record.dtr ? Number.parseFloat(record.dtr) : undefined,
           totalTime: record.total_time,
           notes: record.notes,
           cuppingNotes: record.cupping_notes,
-          memo: record.memo,
           createdAt: record.created_at,
           updatedAt: record.updated_at,
         }))
@@ -243,18 +240,23 @@ export default function Home() {
         heater: record.heater,
         fan2: record.fan2,
         temps: record.temps,
-        first_crack_time: record.firstCrackTime,
-        second_crack_time: record.secondCrackTime,
-        final_temp: record.finalTemp,
         maillard_time: record.maillardTime,
         develop_time: record.developTime,
         dtr: record.dtr,
         total_time: record.totalTime,
         notes: record.notes,
         cupping_notes: record.cuppingNotes,
-        memo: record.memo,
-        created_at: record.createdAt,
         updated_at: new Date().toISOString(),
+      }
+
+      if (record.firstCrackTime) {
+        supabaseRecord.first_crack_time = record.firstCrackTime
+      }
+      if (record.secondCrackTime) {
+        supabaseRecord.second_crack_time = record.secondCrackTime
+      }
+      if (record.createdAt) {
+        supabaseRecord.created_at = record.createdAt
       }
 
       console.log("[v0] Saving record to Supabase:", supabaseRecord)
@@ -370,11 +372,6 @@ export default function Home() {
     )
   })
 
-  const handleMemoUpdate = (memo: string) => {
-    console.log("[v0] Memo updated:", memo)
-    setCurrentMemo(memo)
-  }
-
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 shadow-md border-b-2 border-gray-200">
@@ -480,7 +477,6 @@ export default function Home() {
             editRecord={editingRecord}
             beanList={beanList}
             onBeanListUpdate={handleBeanListUpdate}
-            onMemoUpdate={handleMemoUpdate}
           />
         ) : null}
       </main>

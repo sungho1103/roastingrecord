@@ -25,7 +25,6 @@ export interface RoastingRecord {
   totalTime?: string // 전체 로스팅 시간
   notes?: string // 메모
   cuppingNotes?: string // 컵핑 노트
-  memo?: string // 메모
   createdAt: string
   updatedAt: string
 }

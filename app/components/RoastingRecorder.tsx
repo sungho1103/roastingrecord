@@ -965,29 +965,14 @@ export default function RoastingRecorder({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="block text-base font-semibold text-gray-700">메모</label>
-              <input
-                type="text"
-                value={memo}
-                onChange={(e) => {
-                  console.log("[v0] Memo input changed to:", e.target.value)
-                  setMemo(e.target.value)
-                }}
-                className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                placeholder="메모 입력 (로스팅목록에 표시됩니다)"
-                maxLength={100}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-base font-semibold text-gray-700">ID (선택사항)</label>
+              <label className="block text-base font-semibold text-gray-700">ID</label>
               <input
                 type="text"
                 value={recordId}
                 onChange={(e) => setRecordId(e.target.value)}
                 className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                placeholder="ID 입력 (선택사항)"
-                maxLength={20}
+                placeholder="ID 입력"
+                maxLength={50}
               />
             </div>
           </div>
