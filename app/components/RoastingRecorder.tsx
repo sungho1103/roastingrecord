@@ -1045,7 +1045,7 @@ export default function RoastingRecorder({
                 {Object.keys(presets || storedPresets).map((preset) => {
                   const presetNum = Number(preset)
                   return (
-                    <div key={preset} className="flex items-center gap-2">
+                    <div key={preset} className="flex items-center gap-1">
                       <button
                         onClick={() => handlePresetChange(presetNum)}
                         className={`px-4 py-2 rounded-lg font-semibold transition-all ${
@@ -1062,7 +1062,7 @@ export default function RoastingRecorder({
                         <>
                           <button
                             onClick={() => handleEditPreset(presetNum)}
-                            className="px-3 py-2 rounded-lg font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition-all"
+                            className="px-2 py-2 rounded-lg font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition-all text-sm"
                             type="button"
                             title="수정"
                           >
@@ -1070,7 +1070,7 @@ export default function RoastingRecorder({
                           </button>
                           <button
                             onClick={() => handleDeletePreset(presetNum)}
-                            className="px-3 py-2 rounded-lg font-semibold bg-red-500 text-white hover:bg-red-600 transition-all"
+                            className="px-2 py-2 rounded-lg font-semibold bg-red-500 text-white hover:bg-red-600 transition-all text-sm"
                             type="button"
                             title="삭제"
                           >
