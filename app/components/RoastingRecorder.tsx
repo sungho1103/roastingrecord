@@ -90,6 +90,8 @@ export default function RoastingRecorder({
 
   const [currentPreset, setCurrentPreset] = useState<number>(1)
   const [storedPresets, setStoredPresets] = useState(loadPresetsFromStorage())
+  const [editingPreset, setEditingPreset] = useState<number | null>(null)
+  const [editPresetValues, setEditPresetValues] = useState({ fan1: "", heater: "", fan2: "", name: "" })
 
   const handlePresetChange = (preset: number) => {
     setCurrentPreset(preset)
@@ -111,6 +113,77 @@ export default function RoastingRecorder({
     }
     setStoredPresets(newPresets)
     localStorage.setItem("roasting_presets", JSON.stringify(newPresets))
+    // Start editing the new preset immediately
+    setEditingPreset(newPresetNumber)
+    setEditPresetValues({
+      fan1: "75",
+      heater: "90",
+      fan2: "2.5",
+      name: `세팅${newPresetNumber}`,
+    })
+  }
+
+  const handleDeletePreset = (presetNum: number) => {
+    if (Object.keys(storedPresets).length <= 1) {
+      alert("최소 하나의 세팅은 유지되어야 합니다.")
+      return
+    }
+
+    if (confirm(`세팅${presetNum}을(를) 삭제하시겠습니까?`)) {
+      const newPresets = { ...storedPresets }
+      delete newPresets[presetNum]
+
+      // Renumber the remaining presets
+      const renumbered: any = {}
+      let counter = 1
+      Object.keys(newPresets)
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach((key) => {
+          renumbered[counter] = { ...newPresets[key], name: newPresets[key].name || `세팅${counter}` }
+          counter++
+        })
+
+      setStoredPresets(renumbered)
+      localStorage.setItem("roasting_presets", JSON.stringify(renumbered))
+
+      // Reset to preset 1 if current was deleted
+      if (currentPreset === presetNum || currentPreset > Object.keys(renumbered).length) {
+        handlePresetChange(1)
+      }
+    }
+  }
+
+  const handleEditPreset = (presetNum: number) => {
+    setEditingPreset(presetNum)
+    setEditPresetValues({
+      fan1: storedPresets[presetNum].fan1,
+      heater: storedPresets[presetNum].heater,
+      fan2: storedPresets[presetNum].fan2,
+      name: storedPresets[presetNum].name,
+    })
+  }
+
+  const handleSavePreset = () => {
+    if (!editingPreset) return
+
+    const newPresets = {
+      ...storedPresets,
+      [editingPreset]: editPresetValues,
+    }
+    setStoredPresets(newPresets)
+    localStorage.setItem("roasting_presets", JSON.stringify(newPresets))
+    setEditingPreset(null)
+
+    // Update current values if editing the active preset
+    if (currentPreset === editingPreset) {
+      setFan1(editPresetValues.fan1)
+      setHeater(editPresetValues.heater)
+      setFan2(editPresetValues.fan2)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingPreset(null)
   }
 
   // Fetches bean list from parent if not editing
@@ -968,23 +1041,44 @@ export default function RoastingRecorder({
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-800">기본 세팅값</h3>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap mb-4">
                 {Object.keys(presets || storedPresets).map((preset) => {
                   const presetNum = Number(preset)
                   return (
-                    <button
-                      key={preset}
-                      onClick={() => handlePresetChange(presetNum)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                        currentPreset === presetNum
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                      type="button"
-                    >
-                      {presetNum} -{" "}
-                      {presets ? presets[presetNum].name : storedPresets[presetNum].name || `세팅${presetNum}`}
-                    </button>
+                    <div key={preset} className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePresetChange(presetNum)}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                          currentPreset === presetNum
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                        type="button"
+                      >
+                        {presetNum} -{" "}
+                        {presets ? presets[presetNum].name : storedPresets[presetNum].name || `세팅${presetNum}`}
+                      </button>
+                      {!presets && (
+                        <>
+                          <button
+                            onClick={() => handleEditPreset(presetNum)}
+                            className="px-3 py-2 rounded-lg font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition-all"
+                            type="button"
+                            title="수정"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDeletePreset(presetNum)}
+                            className="px-3 py-2 rounded-lg font-semibold bg-red-500 text-white hover:bg-red-600 transition-all"
+                            type="button"
+                            title="삭제"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
+                    </div>
                   )
                 })}
                 <button
@@ -995,6 +1089,66 @@ export default function RoastingRecorder({
                   + 추가
                 </button>
               </div>
+
+              {editingPreset && (
+                <div className="bg-blue-50 p-4 rounded-lg mb-4 border-2 border-blue-300">
+                  <h4 className="font-bold text-gray-800 mb-3">세팅 {editingPreset} 수정</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">세팅 이름</label>
+                      <input
+                        type="text"
+                        value={editPresetValues.name}
+                        onChange={(e) => setEditPresetValues({ ...editPresetValues, name: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">FAN 1</label>
+                      <input
+                        type="text"
+                        value={editPresetValues.fan1}
+                        onChange={(e) => setEditPresetValues({ ...editPresetValues, fan1: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Heater</label>
+                      <input
+                        type="text"
+                        value={editPresetValues.heater}
+                        onChange={(e) => setEditPresetValues({ ...editPresetValues, heater: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">FAN 2</label>
+                      <input
+                        type="text"
+                        value={editPresetValues.fan2}
+                        onChange={(e) => setEditPresetValues({ ...editPresetValues, fan2: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSavePreset}
+                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold"
+                      type="button"
+                    >
+                      저장
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-semibold"
+                      type="button"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>

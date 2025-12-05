@@ -106,6 +106,9 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
                 180°
               </th>
               <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+                182°
+              </th>
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
                 183°
               </th>
               <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
@@ -160,6 +163,7 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.temps["130"] || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.temps["150"] || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.temps["180"] || "-"}</td>
+                  <td className="px-2 py-2 text-base font-medium text-gray-700">{record.temps["182"] || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.temps["183"] || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.temps["end"] || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">
