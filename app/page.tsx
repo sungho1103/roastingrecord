@@ -457,17 +457,6 @@ export default function Home() {
                     {(records.reduce((sum, r) => sum + r.greenWeight, 0) / 1000).toFixed(1)}kg
                   </p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200">
-                  <p className="text-sm font-semibold text-green-700 mb-1">평균 수율</p>
-                  <p className="text-3xl font-black text-green-900">
-                    {records.filter((r) => r.yield).length > 0
-                      ? (
-                          records.reduce((sum, r) => sum + (r.yield || 0), 0) / records.filter((r) => r.yield).length
-                        ).toFixed(1)
-                      : "-"}
-                    %
-                  </p>
-                </div>
                 <div className="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-200">
                   <p className="text-sm font-semibold text-purple-700 mb-1">평균 DTR</p>
                   <p className="text-3xl font-black text-purple-900">

@@ -129,9 +129,9 @@ export default function RoastingRecorder({
       return
     }
 
-    if (confirm(`세팅${presetNum}을(를) 삭제하시겠습니까?`)) {
+    if (confirm(`세팅${currentPreset}을(를) 삭제하시겠습니까?`)) {
       const newPresets = { ...storedPresets }
-      delete newPresets[presetNum]
+      delete newPresets[currentPreset]
 
       // Renumber the remaining presets
       const renumbered: any = {}
@@ -146,20 +146,19 @@ export default function RoastingRecorder({
       setStoredPresets(renumbered)
       localStorage.setItem("roasting_presets", JSON.stringify(renumbered))
 
-      // Reset to preset 1 if current was deleted
-      if (currentPreset === presetNum || currentPreset > Object.keys(renumbered).length) {
-        handlePresetChange(1)
-      }
+      // Reset to preset 1 after deletion
+      setCurrentPreset(1)
+      handlePresetChange(1)
     }
   }
 
-  const handleEditPreset = (presetNum: number) => {
-    setEditingPreset(presetNum)
+  const handleEditPreset = () => {
+    setEditingPreset(currentPreset)
     setEditPresetValues({
-      fan1: storedPresets[presetNum].fan1,
-      heater: storedPresets[presetNum].heater,
-      fan2: storedPresets[presetNum].fan2,
-      name: storedPresets[presetNum].name,
+      fan1: storedPresets[currentPreset].fan1,
+      heater: storedPresets[currentPreset].heater,
+      fan2: storedPresets[currentPreset].fan2,
+      name: storedPresets[currentPreset].name,
     })
   }
 
@@ -1039,59 +1038,60 @@ export default function RoastingRecorder({
           </div>
 
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">기본 세팅값</h3>
-              <div className="flex gap-2 flex-wrap mb-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">기본 세팅값</h3>
+              <div className="flex gap-2 flex-wrap items-center">
                 {Object.keys(presets || storedPresets).map((preset) => {
                   const presetNum = Number(preset)
                   return (
-                    <div key={preset} className="flex items-center gap-1">
-                      <button
-                        onClick={() => handlePresetChange(presetNum)}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                          currentPreset === presetNum
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
-                        type="button"
-                      >
-                        {presetNum} -{" "}
-                        {presets ? presets[presetNum].name : storedPresets[presetNum].name || `세팅${presetNum}`}
-                      </button>
-                      {!presets && (
-                        <>
-                          <button
-                            onClick={() => handleEditPreset(presetNum)}
-                            className="px-2 py-2 rounded-lg font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition-all text-sm"
-                            type="button"
-                            title="수정"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDeletePreset(presetNum)}
-                            className="px-2 py-2 rounded-lg font-semibold bg-red-500 text-white hover:bg-red-600 transition-all text-sm"
-                            type="button"
-                            title="삭제"
-                          >
-                            🗑️
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    <button
+                      key={preset}
+                      onClick={() => handlePresetChange(presetNum)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        currentPreset === presetNum
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                      type="button"
+                    >
+                      {presetNum} -{" "}
+                      {presets ? presets[presetNum].name : storedPresets[presetNum].name || `세팅${presetNum}`}
+                    </button>
                   )
                 })}
-                <button
-                  onClick={handleAddPreset}
-                  className="px-4 py-2 rounded-lg font-semibold bg-green-500 text-white hover:bg-green-600 transition-all"
-                  type="button"
-                >
-                  + 추가
-                </button>
+
+                {!presets && (
+                  <>
+                    <button
+                      onClick={handleEditPreset}
+                      className="px-3 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all text-lg"
+                      type="button"
+                      title="수정"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => handleDeletePreset(currentPreset)}
+                      className="px-3 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all text-lg"
+                      type="button"
+                      title="삭제"
+                    >
+                      🗑️
+                    </button>
+                    <button
+                      onClick={handleAddPreset}
+                      className="px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-all text-lg"
+                      type="button"
+                      title="추가"
+                    >
+                      +
+                    </button>
+                  </>
+                )}
               </div>
 
               {editingPreset && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-4 border-2 border-blue-300">
+                <div className="bg-blue-50 p-4 rounded-lg mt-4 border-2 border-blue-300">
                   <h4 className="font-bold text-gray-800 mb-3">세팅 {editingPreset} 수정</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                     <div>

@@ -72,12 +72,9 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
         onMouseLeave={handleMouseLeave}
         style={{ cursor: isDragging ? "grabbing" : "grab" }}
       >
-        <table className="w-full table-auto">
+        <table className="table-fixed w-max min-w-full">
           <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[100px]">
-                메모
-              </th>
               <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[120px]">
                 날짜/시간
               </th>
@@ -141,7 +138,6 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
                   key={record.id}
                   className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors`}
                 >
-                  <td className="px-3 py-2 text-base font-medium text-gray-700">{record.memo || "-"}</td>
                   <td className="px-3 py-2 text-base font-medium text-gray-700">
                     <div>{record.date}</div>
                     {record.time && <div className="text-sm text-gray-500">{record.time}</div>}
@@ -200,7 +196,7 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
                 </tr>
                 {selectedRecordId === record.id && (
                   <tr key={`${record.id}-details`} className="bg-blue-50">
-                    <td colSpan={18} className="px-5 py-6">
+                    <td colSpan={17} className="px-5 py-6">
                       <div className="space-y-4">
                         {(record.firstCrackTime || record.secondCrackTime || record.finalTemp) && (
                           <div className="bg-white p-4 rounded-lg border border-gray-300">
