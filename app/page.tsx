@@ -18,29 +18,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
-  const [presets, setPresets] = useState<{
-    1: { name: string; fan1: string; heater: string; fan2: string }
-    2: { name: string; fan1: string; heater: string; fan2: string }
-    3: { name: string; fan1: string; heater: string; fan2: string }
-  }>()
   const [isEditingPresets, setIsEditingPresets] = useState(false)
   const [currentMemo, setCurrentMemo] = useState<string>("")
 
   useEffect(() => {
-    const savedPresets = localStorage.getItem("roasting_presets")
-    if (savedPresets) {
-      try {
-        const parsed = JSON.parse(savedPresets)
-        setPresets(parsed)
-      } catch (e) {
-        console.error("Failed to parse presets:", e)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
     fetchRecords()
-    fetchBeanList()
+    fetchBeanNames()
   }, [])
 
   const fetchRecords = async () => {
@@ -96,8 +79,8 @@ export default function Home() {
     }
   }
 
-  const fetchBeanList = async () => {
-    console.log("[v0] Fetching bean list from Supabase...")
+  const fetchBeanNames = async () => {
+    console.log("[v0] Fetching bean names from Supabase...")
 
     if (!isSupabaseConfigured) {
       console.log("[v0] Supabase not configured, using localStorage")
@@ -132,7 +115,7 @@ export default function Home() {
 
       if (data && data.length > 0) {
         const beans = data.map((item) => item.name)
-        console.log("[v0] Loaded bean list from Supabase:", JSON.stringify(beans))
+        console.log("[v0] Loaded bean names from Supabase:", JSON.stringify(beans))
         localStorage.removeItem("beanList")
         setBeanList(beans)
         localStorage.setItem("beanList", JSON.stringify(beans))
@@ -142,7 +125,7 @@ export default function Home() {
         localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
       }
     } catch (error) {
-      console.error("[v0] Error fetching bean list:", error)
+      console.error("[v0] Error fetching bean names:", error)
       const saved = localStorage.getItem("beanList")
       if (saved) {
         setBeanList(JSON.parse(saved))
@@ -506,7 +489,6 @@ export default function Home() {
             onSave={handleSave}
             onCancel={handleCancel}
             editRecord={editingRecord}
-            presets={presets}
             beanList={beanList}
             onBeanListUpdate={handleBeanListUpdate}
             onMemoUpdate={handleMemoUpdate}
@@ -546,92 +528,6 @@ export default function Home() {
                   📥 원두 목록 가져오기
                 </button>
               </div>
-            </div>
-
-            <h3 className="text-lg font-bold text-gray-800 mb-4">초기 세팅값</h3>
-            <div className="space-y-6">
-              {[1, 2, 3].map((presetNum) => (
-                <div key={presetNum} className="border-2 border-gray-200 rounded-xl p-6">
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-600 mb-2">세팅 이름</label>
-                    <input
-                      type="text"
-                      value={presets?.[presetNum].name}
-                      onChange={(e) =>
-                        setPresets({
-                          ...presets,
-                          [presetNum]: { ...presets?.[presetNum], name: e.target.value },
-                        })
-                      }
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg font-semibold"
-                      placeholder={`세팅 ${presetNum}`}
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-600 mb-2">F1</label>
-                      <input
-                        type="text"
-                        value={presets?.[presetNum].fan1}
-                        onChange={(e) =>
-                          setPresets({
-                            ...presets,
-                            [presetNum]: { ...presets?.[presetNum], fan1: e.target.value },
-                          })
-                        }
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-600 mb-2">Ht</label>
-                      <input
-                        type="text"
-                        value={presets?.[presetNum].heater}
-                        onChange={(e) =>
-                          setPresets({
-                            ...presets,
-                            [presetNum]: { ...presets?.[presetNum], heater: e.target.value },
-                          })
-                        }
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-600 mb-2">F2</label>
-                      <input
-                        type="text"
-                        value={presets?.[presetNum].fan2}
-                        onChange={(e) =>
-                          setPresets({
-                            ...presets,
-                            [presetNum]: { ...presets?.[presetNum], fan2: e.target.value },
-                          })
-                        }
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-lg"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                onClick={() => setShowSettings(false)}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.setItem("roasting_presets", JSON.stringify(presets))
-                  setShowSettings(false)
-                  alert("초기 세팅값이 저장되었습니다.")
-                }}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all"
-              >
-                저장
-              </button>
             </div>
           </div>
         </div>
