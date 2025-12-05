@@ -89,13 +89,28 @@ export default function RoastingRecorder({
   }
 
   const [currentPreset, setCurrentPreset] = useState<number>(1)
-  const [storedPresets] = useState(loadPresetsFromStorage())
+  const [storedPresets, setStoredPresets] = useState(loadPresetsFromStorage())
 
   const handlePresetChange = (preset: number) => {
     setCurrentPreset(preset)
     setFan1(presets ? presets[preset].fan1 : storedPresets[preset].fan1)
     setHeater(presets ? presets[preset].heater : storedPresets[preset].heater)
     setFan2(presets ? presets[preset].fan2 : storedPresets[preset].fan2)
+  }
+
+  const handleAddPreset = () => {
+    const newPresetNumber = Object.keys(storedPresets).length + 1
+    const newPresets = {
+      ...storedPresets,
+      [newPresetNumber]: {
+        fan1: "75",
+        heater: "90",
+        fan2: "2.5",
+        name: `세팅${newPresetNumber}`,
+      },
+    }
+    setStoredPresets(newPresets)
+    localStorage.setItem("roasting_presets", JSON.stringify(newPresets))
   }
 
   // Fetches bean list from parent if not editing
@@ -220,7 +235,9 @@ export default function RoastingRecorder({
 
   // Added useEffect to update memo whenever it changes, syncing with parent
   useEffect(() => {
-    if (memo && onMemoUpdate) {
+    console.log("[v0] Memo value changed:", memo)
+    if (onMemoUpdate) {
+      console.log("[v0] Calling onMemoUpdate with memo:", memo)
       onMemoUpdate(memo)
     }
   }, [memo, onMemoUpdate])
@@ -725,42 +742,43 @@ export default function RoastingRecorder({
         </h2>
 
         <div className="space-y-6">
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">로스팅 날짜</label>
-            <div className="flex gap-4">
-              <input
-                type="date"
-                value={roastDate}
-                onChange={(e) => setRoastDate(e.target.value)}
-                className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-              />
-              <button
-                onClick={handleSetTodayDate}
-                className="px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-sm text-base"
-                type="button"
-              >
-                오늘날짜
-              </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-base font-semibold text-gray-700">로스팅 날짜</label>
+              <div className="flex gap-4">
+                <input
+                  type="date"
+                  value={roastDate}
+                  onChange={(e) => setRoastDate(e.target.value)}
+                  className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                />
+                <button
+                  onClick={handleSetTodayDate}
+                  className="px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-sm text-base"
+                  type="button"
+                >
+                  오늘
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">로스팅 시작 시간</label>
-            <div className="flex gap-4">
-              <input
-                type="time"
-                value={roastTime}
-                onChange={(e) => setRoastTime(e.target.value)}
-                className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                placeholder="HH:MM"
-              />
-              <button
-                onClick={handleSetCurrentTime}
-                className="px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-sm text-base"
-                type="button"
-              >
-                현재시간
-              </button>
+            <div className="space-y-3">
+              <label className="block text-base font-semibold text-gray-700">로스팅 시작 시간</label>
+              <div className="flex gap-4">
+                <input
+                  type="time"
+                  value={roastTime}
+                  onChange={(e) => setRoastTime(e.target.value)}
+                  className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                />
+                <button
+                  onClick={handleSetCurrentTime}
+                  className="px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all shadow-sm text-base"
+                  type="button"
+                >
+                  현재시간
+                </button>
+              </div>
             </div>
           </div>
 
@@ -871,35 +889,35 @@ export default function RoastingRecorder({
               className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
               placeholder="자동계산됨 (수정가능)"
             />
-            {yieldPercent !== undefined && (
-              <p className="text-xl font-bold text-green-700 bg-green-50 p-3 rounded-xl text-center shadow-sm border border-green-200">
-                수율: {yieldPercent}%
-              </p>
-            )}
           </div>
 
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">메모</label>
-            <input
-              type="text"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-              placeholder="메모 입력 (로스팅목록에 표시됩니다)"
-              maxLength={100}
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-base font-semibold text-gray-700">메모</label>
+              <input
+                type="text"
+                value={memo}
+                onChange={(e) => {
+                  console.log("[v0] Memo input changed to:", e.target.value)
+                  setMemo(e.target.value)
+                }}
+                className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                placeholder="메모 입력 (로스팅목록에 표시됩니다)"
+                maxLength={100}
+              />
+            </div>
 
-          <div className="space-y-3">
-            <label className="block text-base font-semibold text-gray-700">ID (선택사항)</label>
-            <input
-              type="text"
-              value={recordId}
-              onChange={(e) => setRecordId(e.target.value)}
-              className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-              placeholder="ID 입력 (선택사항)"
-              maxLength={20}
-            />
+            <div className="space-y-3">
+              <label className="block text-base font-semibold text-gray-700">ID (선택사항)</label>
+              <input
+                type="text"
+                value={recordId}
+                onChange={(e) => setRecordId(e.target.value)}
+                className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                placeholder="ID 입력 (선택사항)"
+                maxLength={20}
+              />
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -947,45 +965,9 @@ export default function RoastingRecorder({
             )}
           </div>
 
-          <div className="mb-6">
-            <label className="block text-lg font-bold text-gray-800 mb-3">초기 세팅값</label>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">FAN 1</label>
-                <input
-                  type="number"
-                  value={fan1}
-                  onChange={(e) => setFan1(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                  placeholder="0-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Heater</label>
-                <input
-                  type="number"
-                  value={heater}
-                  onChange={(e) => setHeater(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                  placeholder="0-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">FAN 2</label>
-                <input
-                  type="number"
-                  value={fan2}
-                  onChange={(e) => setFan2(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
-                  placeholder="0-100"
-                />
-              </div>
-            </div>
-          </div>
-
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold mb-6 text-gray-800">기본 세팅값</h3>
+              <h3 className="text-lg font-bold text-gray-800">기본 세팅값</h3>
               <div className="flex gap-2 flex-wrap">
                 {Object.keys(presets || storedPresets).map((preset) => {
                   const presetNum = Number(preset)
@@ -1005,37 +987,44 @@ export default function RoastingRecorder({
                     </button>
                   )
                 })}
+                <button
+                  onClick={handleAddPreset}
+                  className="px-4 py-2 rounded-lg font-semibold bg-green-500 text-white hover:bg-green-600 transition-all"
+                  type="button"
+                >
+                  + 추가
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-600">F1</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">F1</label>
                 <input
                   type="number"
                   value={fan1}
                   onChange={(e) => setFan1(e.target.value)}
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-base font-medium shadow-sm"
-                  step="0.1"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                  placeholder="0-100"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-600">Ht</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ht</label>
                 <input
                   type="number"
                   value={heater}
                   onChange={(e) => setHeater(e.target.value)}
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-base font-medium shadow-sm"
-                  step="0.1"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                  placeholder="0-100"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-600">F2</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">F2</label>
                 <input
                   type="number"
                   value={fan2}
                   onChange={(e) => setFan2(e.target.value)}
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-base font-medium shadow-sm"
-                  step="0.1"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-lg font-medium shadow-sm"
+                  placeholder="0-100"
                 />
               </div>
             </div>
