@@ -52,8 +52,6 @@ export default function Home() {
           heater: record.heater ? Number.parseFloat(record.heater) : undefined,
           fan2: record.fan2 ? Number.parseFloat(record.fan2) : undefined,
           temps: record.temps || {},
-          firstCrackTime: record.first_crack_time,
-          secondCrackTime: record.second_crack_time,
           maillardTime: record.maillard_time,
           developTime: record.develop_time,
           dtr: record.dtr ? Number.parseFloat(record.dtr) : undefined,
@@ -227,7 +225,7 @@ export default function Home() {
         record.id = `${dateStr}-${timeStr}`
       }
 
-      const supabaseRecord = {
+      const supabaseRecord: any = {
         id: record.id,
         date: record.date,
         time: record.time,
@@ -249,12 +247,6 @@ export default function Home() {
         updated_at: new Date().toISOString(),
       }
 
-      if (record.firstCrackTime) {
-        supabaseRecord.first_crack_time = record.firstCrackTime
-      }
-      if (record.secondCrackTime) {
-        supabaseRecord.second_crack_time = record.secondCrackTime
-      }
       if (record.createdAt) {
         supabaseRecord.created_at = record.createdAt
       }
