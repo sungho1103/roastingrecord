@@ -72,61 +72,61 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
         onMouseLeave={handleMouseLeave}
         style={{ cursor: isDragging ? "grabbing" : "grab" }}
       >
-        <table className="table-fixed w-max min-w-full">
+        <table className="w-full">
           <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
             <tr>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[120px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 날짜/시간
               </th>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[130px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 원두명
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[50px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 F1
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[50px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 Ht
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[50px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 F2
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 100°
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 130°
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 150°
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 180°
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 182°
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 183°
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 배출
               </th>
-              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[70px]">
+              <th className="px-2 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 최종온도
               </th>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[70px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 메일라드
               </th>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[70px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 발현
               </th>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[60px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 DTR
               </th>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[70px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 전체시간
               </th>
-              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 min-w-[140px]">
+              <th className="px-3 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wide border-b-2 border-gray-300 whitespace-nowrap">
                 액션
               </th>
             </tr>

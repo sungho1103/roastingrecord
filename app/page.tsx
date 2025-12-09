@@ -435,7 +435,7 @@ export default function Home() {
             </div>
 
             {records.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 <div className="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-200">
                   <p className="text-sm font-semibold text-blue-700 mb-1">전체 로스팅</p>
                   <p className="text-3xl font-black text-blue-900">{records.length}회</p>
