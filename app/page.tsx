@@ -44,7 +44,30 @@ export default function Home() {
         if (error) throw error
 
         if (data) {
-          setRecords(data)
+          const mappedRecords = data.map((record) => ({
+            id: record.id,
+            date: record.date,
+            time: record.time,
+            beanName: record.bean_name,
+            beanOrigin: record.bean_origin,
+            greenWeight: record.green_weight,
+            roastedWeight: record.roasted_weight,
+            yield: record.yield,
+            fan1: record.fan1,
+            heater: record.heater,
+            fan2: record.fan2,
+            temps: record.temps,
+            maillardTime: record.maillard_time,
+            developTime: record.develop_time,
+            dtr: record.dtr,
+            totalTime: record.total_time,
+            firstCrackTime: record.first_crack_time,
+            secondCrackTime: record.second_crack_time,
+            finalTemp: record.final_temp,
+            notes: record.notes,
+            cuppingNotes: record.cupping_notes,
+          }))
+          setRecords(mappedRecords)
           setLoading(false)
           return
         }
@@ -52,7 +75,7 @@ export default function Home() {
 
       loadFromLocalStorage()
     } catch (error) {
-      console.log("[v0] Error fetching from Supabase, falling back to localStorage:", error)
+      console.error("Error fetching from Supabase:", error)
       loadFromLocalStorage()
     } finally {
       setLoading(false)
@@ -115,14 +138,38 @@ export default function Home() {
       let updatedRecords: RoastingRecord[]
 
       if (isSupabaseConfigured) {
+        const supabaseRecord = {
+          id: record.id,
+          date: record.date,
+          time: record.time,
+          bean_name: record.beanName,
+          bean_origin: record.beanOrigin,
+          green_weight: record.greenWeight,
+          roasted_weight: record.roastedWeight,
+          yield: record.yield,
+          fan1: record.fan1,
+          heater: record.heater,
+          fan2: record.fan2,
+          temps: record.temps,
+          maillard_time: record.maillardTime,
+          develop_time: record.developTime,
+          dtr: record.dtr,
+          total_time: record.totalTime,
+          first_crack_time: record.firstCrackTime,
+          second_crack_time: record.secondCrackTime,
+          final_temp: record.finalTemp,
+          notes: record.notes,
+          cupping_notes: record.cuppingNotes,
+        }
+
         if (editingRecord) {
-          const { error } = await supabase.from("roasting_records").update(record).eq("id", editingRecord.id)
+          const { error } = await supabase.from("roasting_records").update(supabaseRecord).eq("id", editingRecord.id)
 
           if (error) throw error
 
           updatedRecords = records.map((r) => (r.id === editingRecord.id ? record : r))
         } else {
-          const { error } = await supabase.from("roasting_records").insert([record])
+          const { error } = await supabase.from("roasting_records").insert([supabaseRecord])
 
           if (error) throw error
 
