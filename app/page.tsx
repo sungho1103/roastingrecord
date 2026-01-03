@@ -5,7 +5,7 @@ import type { RoastingRecord } from "./types"
 import RoastingRecorder from "./components/RoastingRecorder"
 import RoastingTable from "./components/RoastingTable"
 import RecordDetail from "./components/RecordDetail"
-import { supabase, isSupabaseConfigured } from "../lib/supabase"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 const DEFAULT_BEANS = ["Arabica", "Robusta", "Liberica"]
 
@@ -18,14 +18,33 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
-  const [isEditingPresets, setIsEditingPresets] = useState(false)
-  const [supabaseError, setSupabaseError] = useState(false)
-  const [useLocalStorage, setUseLocalStorage] = useState(false)
 
   useEffect(() => {
     fetchRecords()
-    fetchBeanNames()
+    loadBeanList()
   }, [])
+
+  const fetchRecords = async () => {
+    setLoading(true)
+    try {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
+
+        if (error) throw error
+
+        if (data) {
+          setRecords(data)
+        }
+      } else {
+        loadFromLocalStorage()
+      }
+    } catch (error) {
+      console.error("Error fetching records:", error)
+      loadFromLocalStorage()
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadFromLocalStorage = () => {
     try {
@@ -47,96 +66,17 @@ export default function Home() {
     }
   }
 
-  const fetchRecords = async () => {
-    loadFromLocalStorage()
-
-    if (!isSupabaseConfigured) {
-      setLoading(false)
-      setUseLocalStorage(true)
-      return
-    }
-
+  const loadBeanList = async () => {
     try {
-      setLoading(true)
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), 5000))
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.from("bean_names").select("name").order("name")
 
-      const fetchPromise = supabase.from("roasting_records").select("*").order("date", { ascending: false })
-
-      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any
-
-      if (error) throw error
-
-      if (data) {
-        const formattedRecords: RoastingRecord[] = data.map((record: any) => ({
-          id: record.id || "",
-          date: record.date,
-          time: record.time,
-          beanName: record.bean_name,
-          beanOrigin: record.bean_origin,
-          greenWeight: Number.parseFloat(record.green_weight),
-          roastedWeight: record.roasted_weight ? Number.parseFloat(record.roasted_weight) : undefined,
-          yield: record.yield ? Number.parseFloat(record.yield) : undefined,
-          fan1: record.fan1 ? Number.parseFloat(record.fan1) : undefined,
-          heater: record.heater ? Number.parseFloat(record.heater) : undefined,
-          fan2: record.fan2 ? Number.parseFloat(record.fan2) : undefined,
-          temps: record.temps || {},
-          maillardTime: record.maillard_time,
-          developTime: record.develop_time,
-          dtr: record.dtr ? Number.parseFloat(record.dtr) : undefined,
-          totalTime: record.total_time,
-          notes: record.notes,
-          cuppingNotes: record.cupping_notes,
-          createdAt: record.created_at,
-          updatedAt: record.updated_at,
-        }))
-        setRecords(formattedRecords)
-        saveToLocalStorage(formattedRecords)
-        setSupabaseError(false)
-        setUseLocalStorage(false)
-      }
-    } catch (error) {
-      setSupabaseError(true)
-      setUseLocalStorage(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchBeanNames = async () => {
-    if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem("beanList")
-      if (saved) {
-        try {
-          setBeanList(JSON.parse(saved))
-        } catch {
-          setBeanList(DEFAULT_BEANS)
+        if (!error && data && data.length > 0) {
+          setBeanList(data.map((b) => b.name))
+          return
         }
-      } else {
-        setBeanList(DEFAULT_BEANS)
-        localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
       }
-      return
-    }
 
-    try {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), 5000))
-
-      const fetchPromise = supabase.from("bean_names").select("name").order("name")
-
-      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any
-
-      if (error) throw error
-
-      if (data && data.length > 0) {
-        const beans = data.map((item) => item.name)
-        localStorage.removeItem("beanList")
-        setBeanList(beans)
-        localStorage.setItem("beanList", JSON.stringify(beans))
-      } else {
-        setBeanList(DEFAULT_BEANS)
-        localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
-      }
-    } catch (error) {
       const saved = localStorage.getItem("beanList")
       if (saved) {
         setBeanList(JSON.parse(saved))
@@ -144,67 +84,12 @@ export default function Home() {
         setBeanList(DEFAULT_BEANS)
         localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
       }
+    } catch (error) {
+      setBeanList(DEFAULT_BEANS)
     }
-  }
-
-  const syncBeanListToSupabase = async (beans: string[]) => {
-    if (!isSupabaseConfigured || useLocalStorage) {
-      return
-    }
-
-    try {
-      const { error: deleteError } = await supabase
-        .from("bean_names")
-        .delete()
-        .gte("id", "00000000-0000-0000-0000-000000000000")
-
-      if (deleteError) {
-        // Continue anyway, maybe table was empty
-      }
-
-      const beanRecords = beans.filter((b) => b.trim()).map((name) => ({ name }))
-
-      if (beanRecords.length === 0) {
-        return
-      }
-
-      const { data, error: insertError } = await supabase.from("bean_names").insert(beanRecords).select()
-
-      if (insertError) {
-        throw insertError
-      }
-    } catch (error) {}
   }
 
   const handleSave = async (record: RoastingRecord) => {
-    if (!isSupabaseConfigured || useLocalStorage) {
-      try {
-        if (!record.id || record.id.trim() === "") {
-          const now = new Date()
-          const dateStr = now.toISOString().split("T")[0].replace(/-/g, "")
-          const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, "")
-          record.id = `${dateStr}-${timeStr}`
-        }
-
-        let updatedRecords: RoastingRecord[]
-
-        if (editingRecord) {
-          updatedRecords = records.map((r) => (r.id === editingRecord.id ? record : r))
-        } else {
-          updatedRecords = [record, ...records]
-        }
-
-        setRecords(updatedRecords)
-        saveToLocalStorage(updatedRecords)
-        setView("list")
-        setEditingRecord(null)
-        return
-      } catch (error) {
-        alert("저장 중 오류가 발생했습니다.")
-        return
-      }
-    }
-
     try {
       if (!record.id || record.id.trim() === "") {
         const now = new Date()
@@ -213,56 +98,36 @@ export default function Home() {
         record.id = `${dateStr}-${timeStr}`
       }
 
-      const supabaseRecord: any = {
-        id: record.id,
-        date: record.date,
-        time: record.time,
-        bean_name: record.beanName,
-        bean_origin: record.beanOrigin,
-        green_weight: record.greenWeight,
-        roasted_weight: record.roastedWeight,
-        yield: record.yield,
-        fan1: record.fan1,
-        heater: record.heater,
-        fan2: record.fan2,
-        temps: record.temps,
-        maillard_time: record.maillardTime,
-        develop_time: record.developTime,
-        dtr: record.dtr,
-        total_time: record.totalTime,
-        notes: record.notes,
-        cupping_notes: record.cuppingNotes,
-        updated_at: new Date().toISOString(),
-      }
+      let updatedRecords: RoastingRecord[]
 
-      if (record.createdAt) {
-        supabaseRecord.created_at = record.createdAt
-      }
-
-      if (editingRecord) {
-        if (editingRecord.id !== record.id) {
-          const { error: deleteError } = await supabase.from("roasting_records").delete().eq("id", editingRecord.id)
-
-          if (deleteError) throw deleteError
-
-          const { error: insertError } = await supabase.from("roasting_records").insert([supabaseRecord])
-
-          if (insertError) throw insertError
-        } else {
-          const { error } = await supabase.from("roasting_records").update(supabaseRecord).eq("id", record.id)
+      if (isSupabaseConfigured) {
+        if (editingRecord) {
+          const { error } = await supabase.from("roasting_records").update(record).eq("id", editingRecord.id)
 
           if (error) throw error
+
+          updatedRecords = records.map((r) => (r.id === editingRecord.id ? record : r))
+        } else {
+          const { error } = await supabase.from("roasting_records").insert([record])
+
+          if (error) throw error
+
+          updatedRecords = [record, ...records]
         }
       } else {
-        const { error } = await supabase.from("roasting_records").insert([supabaseRecord])
-
-        if (error) throw error
+        if (editingRecord) {
+          updatedRecords = records.map((r) => (r.id === editingRecord.id ? record : r))
+        } else {
+          updatedRecords = [record, ...records]
+        }
       }
 
-      await fetchRecords()
+      setRecords(updatedRecords)
+      saveToLocalStorage(updatedRecords)
       setView("list")
       setEditingRecord(null)
     } catch (error) {
+      console.error("Error saving record:", error)
       alert("저장 중 오류가 발생했습니다.")
     }
   }
@@ -274,25 +139,18 @@ export default function Home() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!isSupabaseConfigured || useLocalStorage) {
-      try {
-        const updatedRecords = records.filter((r) => r.id !== id)
-        setRecords(updatedRecords)
-        saveToLocalStorage(updatedRecords)
-        return
-      } catch (error) {
-        alert("삭제 중 오류가 발생했습니다.")
-        return
-      }
-    }
-
     try {
-      const { error } = await supabase.from("roasting_records").delete().eq("id", id)
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from("roasting_records").delete().eq("id", id)
 
-      if (error) throw error
+        if (error) throw error
+      }
 
-      await fetchRecords()
+      const updatedRecords = records.filter((r) => r.id !== id)
+      setRecords(updatedRecords)
+      saveToLocalStorage(updatedRecords)
     } catch (error) {
+      console.error("Error deleting record:", error)
       alert("삭제 중 오류가 발생했습니다.")
     }
   }
@@ -333,7 +191,7 @@ export default function Home() {
           try {
             const content = event.target?.result as string
             const importedBeans = JSON.parse(content)
-            await syncBeanListToSupabase(importedBeans)
+            handleBeanListUpdate(importedBeans)
             alert("원두 목록을 가져왔습니다.")
           } catch (error) {
             alert("잘못된 파일 형식입니다.")
@@ -357,17 +215,17 @@ export default function Home() {
 
   const handleBeanListUpdate = async (newBeanList: string[]) => {
     setBeanList(newBeanList)
-
     try {
+      if (isSupabaseConfigured) {
+        await supabase.from("bean_names").delete().neq("name", "")
+
+        const beanRecords = newBeanList.map((name) => ({ name }))
+        await supabase.from("bean_names").insert(beanRecords)
+      }
+
       localStorage.setItem("beanList", JSON.stringify(newBeanList))
     } catch (e) {
-      console.error("localStorage save error:", e)
-    }
-
-    try {
-      await syncBeanListToSupabase(newBeanList)
-    } catch (error) {
-      console.error("Supabase sync failed:", error)
+      console.error("Error saving bean list:", e)
     }
   }
 
@@ -400,44 +258,6 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      {supabaseError && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6 shadow-md">
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">⚠️</span>
-              <div>
-                <h3 className="text-lg font-bold text-red-900 mb-2">데이터베이스 연결 실패</h3>
-                <p className="text-red-800 font-medium mb-3">
-                  Supabase에 연결할 수 없습니다. 이 프리뷰 환경에서는 외부 데이터베이스 연결이 제한될 수 있습니다.
-                </p>
-                <p className="text-red-700 text-sm">실제 배포 환경(Vercel 등)에서는 정상적으로 작동합니다.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!isSupabaseConfigured && !supabaseError && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6 shadow-md">
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">⚠️</span>
-              <div>
-                <h3 className="text-lg font-bold text-amber-900 mb-2">데이터베이스 연결 필요</h3>
-                <p className="text-amber-800 font-medium mb-3">
-                  Supabase가 설정되지 않았습니다. 데이터를 저장하려면 환경 변수를 추가해주세요.
-                </p>
-                <div className="bg-white border border-amber-200 rounded-lg p-4 font-mono text-sm">
-                  <p className="text-amber-900 font-semibold mb-2">왼쪽 사이드바 'Vars' 섹션에서 추가:</p>
-                  <p className="text-amber-800">• NEXT_PUBLIC_SUPABASE_URL</p>
-                  <p className="text-amber-800">• NEXT_PUBLIC_SUPABASE_ANON_KEY</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
@@ -484,7 +304,7 @@ export default function Home() {
               </div>
             )}
 
-            <RoastingTable records={filteredRecords} onEdit={handleEdit} onDelete={handleDelete} />
+            <RoastingTable records={filteredRecords} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
           </div>
         ) : view === "new" || view === "edit" ? (
           <RoastingRecorder
