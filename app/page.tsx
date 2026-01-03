@@ -33,13 +33,7 @@ export default function Home() {
 
     try {
       if (isSupabaseConfigured) {
-        console.log("[v0] Fetching records from Supabase...")
         const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
-
-        console.log("[v0] Supabase response - error:", error)
-        console.log("[v0] Supabase response - data count:", data?.length)
-        console.log("[v0] Supabase response - first record:", data?.[0])
-        console.log("[v0] Supabase response - all data:", data)
 
         if (error) throw error
 
@@ -138,40 +132,47 @@ export default function Home() {
       let updatedRecords: RoastingRecord[]
 
       if (isSupabaseConfigured) {
-        const supabaseRecord = {
+        const supabaseRecord: any = {
           id: record.id,
           date: record.date,
-          time: record.time,
-          bean_name: record.beanName,
-          bean_origin: record.beanOrigin,
-          green_weight: record.greenWeight,
-          roasted_weight: record.roastedWeight,
-          yield: record.yield,
-          fan1: record.fan1,
-          heater: record.heater,
-          fan2: record.fan2,
-          temps: record.temps,
-          maillard_time: record.maillardTime,
-          develop_time: record.developTime,
-          dtr: record.dtr,
-          total_time: record.totalTime,
-          first_crack_time: record.firstCrackTime,
-          second_crack_time: record.secondCrackTime,
-          final_temp: record.finalTemp,
-          notes: record.notes,
-          cupping_notes: record.cuppingNotes,
+          bean_name: record.beanName || "",
+          bean_origin: record.beanOrigin || "",
+          green_weight: record.greenWeight || 0,
+          roasted_weight: record.roastedWeight || 0,
+          yield: record.yield || 0,
+          fan1: record.fan1 || 0,
+          heater: record.heater || 0,
+          fan2: record.fan2 || 0,
+          temps: record.temps || {},
+          maillard_time: record.maillardTime || null,
+          develop_time: record.developTime || null,
+          dtr: record.dtr || null,
+          total_time: record.totalTime || null,
         }
+
+        if (record.time) supabaseRecord.time = record.time
+        if (record.firstCrackTime) supabaseRecord.first_crack_time = record.firstCrackTime
+        if (record.secondCrackTime) supabaseRecord.second_crack_time = record.secondCrackTime
+        if (record.notes) supabaseRecord.notes = record.notes
+        if (record.cuppingNotes) supabaseRecord.cupping_notes = record.cuppingNotes
+        if (record.memo) supabaseRecord.memo = record.memo
 
         if (editingRecord) {
           const { error } = await supabase.from("roasting_records").update(supabaseRecord).eq("id", editingRecord.id)
 
-          if (error) throw error
+          if (error) {
+            console.error("Supabase update error:", error)
+            throw error
+          }
 
           updatedRecords = records.map((r) => (r.id === editingRecord.id ? record : r))
         } else {
           const { error } = await supabase.from("roasting_records").insert([supabaseRecord])
 
-          if (error) throw error
+          if (error) {
+            console.error("Supabase insert error:", error)
+            throw error
+          }
 
           updatedRecords = [record, ...records]
         }
@@ -291,16 +292,10 @@ export default function Home() {
   }
 
   const calculateTotalWeight = () => {
-    console.log("[v0] Calculating total weight from records:", records.length)
-    records.forEach((r, idx) => {
-      console.log(`[v0] Record ${idx} - id: ${r.id}, greenWeight:`, r.greenWeight, typeof r.greenWeight)
-    })
-
     const total = records.reduce((sum, r) => {
       const weight = typeof r.greenWeight === "number" ? r.greenWeight : Number.parseFloat(r.greenWeight) || 0
       return sum + weight
     }, 0)
-    console.log("[v0] Total weight calculated:", total)
     return (total / 1000).toFixed(1)
   }
 
