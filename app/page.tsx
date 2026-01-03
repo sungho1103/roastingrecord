@@ -19,22 +19,50 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
   const [isEditingPresets, setIsEditingPresets] = useState(false)
+  const [supabaseError, setSupabaseError] = useState(false)
+  const [useLocalStorage, setUseLocalStorage] = useState(false)
 
   useEffect(() => {
     fetchRecords()
     fetchBeanNames()
   }, [])
 
+  const loadFromLocalStorage = () => {
+    try {
+      const saved = localStorage.getItem("roastingRecords")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        setRecords(parsed)
+      }
+    } catch (error) {
+      console.error("Error loading from localStorage:", error)
+    }
+  }
+
+  const saveToLocalStorage = (recordsToSave: RoastingRecord[]) => {
+    try {
+      localStorage.setItem("roastingRecords", JSON.stringify(recordsToSave))
+    } catch (error) {
+      console.error("Error saving to localStorage:", error)
+    }
+  }
+
   const fetchRecords = async () => {
+    loadFromLocalStorage()
+
     if (!isSupabaseConfigured) {
-      console.log("[v0] Supabase not configured, using empty records")
       setLoading(false)
+      setUseLocalStorage(true)
       return
     }
 
     try {
       setLoading(true)
-      const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), 5000))
+
+      const fetchPromise = supabase.from("roasting_records").select("*").order("date", { ascending: false })
+
+      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any
 
       if (error) throw error
 
@@ -62,23 +90,20 @@ export default function Home() {
           updatedAt: record.updated_at,
         }))
         setRecords(formattedRecords)
-        console.log("[v0] Loaded records from Supabase:", formattedRecords.length, "records")
+        saveToLocalStorage(formattedRecords)
+        setSupabaseError(false)
+        setUseLocalStorage(false)
       }
     } catch (error) {
-      console.error("Error fetching records:", error)
-      if (isSupabaseConfigured) {
-        alert("데이터를 불러오는 중 오류가 발생했습니다.")
-      }
+      setSupabaseError(true)
+      setUseLocalStorage(true)
     } finally {
       setLoading(false)
     }
   }
 
   const fetchBeanNames = async () => {
-    console.log("[v0] Fetching bean names from Supabase...")
-
     if (!isSupabaseConfigured) {
-      console.log("[v0] Supabase not configured, using localStorage")
       const saved = localStorage.getItem("beanList")
       if (saved) {
         try {
@@ -94,33 +119,24 @@ export default function Home() {
     }
 
     try {
-      const { data, error } = await supabase.from("bean_names").select("name").order("name")
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), 5000))
 
-      if (error) {
-        console.error("[v0] Supabase error:", error.message)
-        const saved = localStorage.getItem("beanList")
-        if (saved) {
-          setBeanList(JSON.parse(saved))
-        } else {
-          setBeanList(DEFAULT_BEANS)
-          localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
-        }
-        return
-      }
+      const fetchPromise = supabase.from("bean_names").select("name").order("name")
+
+      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any
+
+      if (error) throw error
 
       if (data && data.length > 0) {
         const beans = data.map((item) => item.name)
-        console.log("[v0] Loaded bean names from Supabase:", JSON.stringify(beans))
         localStorage.removeItem("beanList")
         setBeanList(beans)
         localStorage.setItem("beanList", JSON.stringify(beans))
       } else {
-        console.log("[v0] No data in Supabase, using defaults")
         setBeanList(DEFAULT_BEANS)
         localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
       }
     } catch (error) {
-      console.error("[v0] Error fetching bean names:", error)
       const saved = localStorage.getItem("beanList")
       if (saved) {
         setBeanList(JSON.parse(saved))
@@ -132,89 +148,61 @@ export default function Home() {
   }
 
   const syncBeanListToSupabase = async (beans: string[]) => {
-    console.log("[v0] === SYNC TO SUPABASE STARTED ===")
-    console.log("[v0] Beans to sync:", beans)
-    console.log("[v0] isSupabaseConfigured:", isSupabaseConfigured)
-
-    if (!isSupabaseConfigured) {
-      console.log("[v0] Supabase not configured, skipping sync")
+    if (!isSupabaseConfigured || useLocalStorage) {
       return
     }
 
     try {
-      console.log("[v0] Step 1: Deleting all existing beans from Supabase...")
       const { error: deleteError } = await supabase
         .from("bean_names")
         .delete()
         .gte("id", "00000000-0000-0000-0000-000000000000")
 
       if (deleteError) {
-        console.error("[v0] Delete error:", deleteError)
         // Continue anyway, maybe table was empty
       }
 
-      console.log("[v0] Step 2: Delete completed")
-
-      // Insert new records
       const beanRecords = beans.filter((b) => b.trim()).map((name) => ({ name }))
-      console.log("[v0] Step 3: Inserting beans:", beanRecords)
 
       if (beanRecords.length === 0) {
-        console.log("[v0] No beans to insert")
         return
       }
 
       const { data, error: insertError } = await supabase.from("bean_names").insert(beanRecords).select()
 
       if (insertError) {
-        console.error("[v0] Insert error:", insertError)
         throw insertError
       }
-
-      console.log("[v0] Step 4: Insert successful")
-      console.log("[v0] Inserted data:", data)
-      console.log("[v0] === SYNC TO SUPABASE COMPLETED SUCCESSFULLY ===")
-    } catch (error) {
-      console.error("[v0] === SYNC TO SUPABASE FAILED ===")
-      console.error("[v0] Sync error:", error)
-      throw error
-    }
-  }
-
-  const handleBeanListUpdate = async (newBeanList: string[]) => {
-    console.log("[v0] === HANDLE BEAN LIST UPDATE STARTED ===")
-    console.log("[v0] New bean list received:", newBeanList)
-
-    // Update React state
-    setBeanList(newBeanList)
-    console.log("[v0] Updated React state")
-
-    // Save to localStorage
-    try {
-      localStorage.setItem("beanList", JSON.stringify(newBeanList))
-      console.log("[v0] Saved to localStorage successfully")
-    } catch (e) {
-      console.error("[v0] localStorage save error:", e)
-    }
-
-    // Sync to Supabase
-    try {
-      console.log("[v0] Starting Supabase sync...")
-      await syncBeanListToSupabase(newBeanList)
-      console.log("[v0] Supabase sync completed")
-    } catch (error) {
-      console.error("[v0] Supabase sync failed:", error)
-    }
-
-    console.log("[v0] === HANDLE BEAN LIST UPDATE COMPLETED ===")
+    } catch (error) {}
   }
 
   const handleSave = async (record: RoastingRecord) => {
-    if (!isSupabaseConfigured) {
-      alert(
-        "데이터베이스가 연결되지 않았습니다.\n\n왼쪽 사이드바의 'Vars' 섹션에서 다음 환경 변수를 설정해주세요:\n- NEXT_PUBLIC_SUPABASE_URL\n- NEXT_PUBLIC_SUPABASE_ANON_KEY",
-      )
-      return
+    if (!isSupabaseConfigured || useLocalStorage) {
+      try {
+        if (!record.id || record.id.trim() === "") {
+          const now = new Date()
+          const dateStr = now.toISOString().split("T")[0].replace(/-/g, "")
+          const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, "")
+          record.id = `${dateStr}-${timeStr}`
+        }
+
+        let updatedRecords: RoastingRecord[]
+
+        if (editingRecord) {
+          updatedRecords = records.map((r) => (r.id === editingRecord.id ? record : r))
+        } else {
+          updatedRecords = [record, ...records]
+        }
+
+        setRecords(updatedRecords)
+        saveToLocalStorage(updatedRecords)
+        setView("list")
+        setEditingRecord(null)
+        return
+      } catch (error) {
+        alert("저장 중 오류가 발생했습니다.")
+        return
+      }
     }
 
     try {
@@ -251,8 +239,6 @@ export default function Home() {
         supabaseRecord.created_at = record.createdAt
       }
 
-      console.log("[v0] Saving record to Supabase:", supabaseRecord)
-
       if (editingRecord) {
         if (editingRecord.id !== record.id) {
           const { error: deleteError } = await supabase.from("roasting_records").delete().eq("id", editingRecord.id)
@@ -277,7 +263,6 @@ export default function Home() {
       setView("list")
       setEditingRecord(null)
     } catch (error) {
-      console.error("Error saving record:", error)
       alert("저장 중 오류가 발생했습니다.")
     }
   }
@@ -289,9 +274,16 @@ export default function Home() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!isSupabaseConfigured) {
-      alert("데이터베이스가 연결되지 않았습니다.")
-      return
+    if (!isSupabaseConfigured || useLocalStorage) {
+      try {
+        const updatedRecords = records.filter((r) => r.id !== id)
+        setRecords(updatedRecords)
+        saveToLocalStorage(updatedRecords)
+        return
+      } catch (error) {
+        alert("삭제 중 오류가 발생했습니다.")
+        return
+      }
     }
 
     try {
@@ -301,7 +293,6 @@ export default function Home() {
 
       await fetchRecords()
     } catch (error) {
-      console.error("Error deleting record:", error)
       alert("삭제 중 오류가 발생했습니다.")
     }
   }
@@ -364,6 +355,22 @@ export default function Home() {
     )
   })
 
+  const handleBeanListUpdate = async (newBeanList: string[]) => {
+    setBeanList(newBeanList)
+
+    try {
+      localStorage.setItem("beanList", JSON.stringify(newBeanList))
+    } catch (e) {
+      console.error("localStorage save error:", e)
+    }
+
+    try {
+      await syncBeanListToSupabase(newBeanList)
+    } catch (error) {
+      console.error("Supabase sync failed:", error)
+    }
+  }
+
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 shadow-md border-b-2 border-gray-200">
@@ -394,7 +401,24 @@ export default function Home() {
         </div>
       </header>
 
-      {!isSupabaseConfigured && (
+      {supabaseError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6 shadow-md">
+            <div className="flex items-start gap-4">
+              <span className="text-3xl">⚠️</span>
+              <div>
+                <h3 className="text-lg font-bold text-red-900 mb-2">데이터베이스 연결 실패</h3>
+                <p className="text-red-800 font-medium mb-3">
+                  Supabase에 연결할 수 없습니다. 이 프리뷰 환경에서는 외부 데이터베이스 연결이 제한될 수 있습니다.
+                </p>
+                <p className="text-red-700 text-sm">실제 배포 환경(Vercel 등)에서는 정상적으로 작동합니다.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isSupabaseConfigured && !supabaseError && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6 shadow-md">
             <div className="flex items-start gap-4">
