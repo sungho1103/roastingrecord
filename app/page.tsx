@@ -20,9 +20,6 @@ export default function Home() {
   const [beanList, setBeanList] = useState<string[]>([])
 
   useEffect(() => {
-    console.log("[v0] Supabase configured:", isSupabaseConfigured)
-    console.log("[v0] Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL ? "Set" : "Not set")
-    console.log("[v0] Supabase Key:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Set" : "Not set")
     fetchRecords()
     loadBeanList()
   }, [])
@@ -30,27 +27,18 @@ export default function Home() {
   const fetchRecords = async () => {
     setLoading(true)
     try {
-      console.log("[v0] fetchRecords - isSupabaseConfigured:", isSupabaseConfigured)
-
       if (isSupabaseConfigured) {
-        console.log("[v0] Attempting to fetch from Supabase...")
         const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
 
-        console.log("[v0] Supabase response - data count:", data?.length || 0, "error:", error)
-
-        if (error) throw error
-
-        if (data) {
-          console.log("[v0] Setting records from Supabase:", data.length)
+        if (!error && data) {
           setRecords(data)
+          setLoading(false)
+          return
         }
-      } else {
-        console.log("[v0] Supabase not configured, loading from localStorage")
-        loadFromLocalStorage()
       }
+
+      loadFromLocalStorage()
     } catch (error) {
-      console.error("[v0] Error fetching records from Supabase:", error)
-      console.log("[v0] Falling back to localStorage")
       loadFromLocalStorage()
     } finally {
       setLoading(false)
@@ -60,16 +48,12 @@ export default function Home() {
   const loadFromLocalStorage = () => {
     try {
       const saved = localStorage.getItem("roastingRecords")
-      console.log("[v0] localStorage data exists:", !!saved)
       if (saved) {
         const parsed = JSON.parse(saved)
-        console.log("[v0] Loaded from localStorage:", parsed.length, "records")
         setRecords(parsed)
-      } else {
-        console.log("[v0] No data in localStorage")
       }
     } catch (error) {
-      console.error("[v0] Error loading from localStorage:", error)
+      // Silent fail - empty records is fine
     }
   }
 
