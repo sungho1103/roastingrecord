@@ -18,6 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchRecords()
@@ -26,19 +27,35 @@ export default function Home() {
 
   const fetchRecords = async () => {
     setLoading(true)
+    setConnectionError(null)
+
     try {
+      console.log("isSupabaseConfigured:", isSupabaseConfigured)
+
       if (isSupabaseConfigured) {
+        console.log("Attempting to fetch from Supabase...")
         const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
 
-        if (!error && data) {
+        if (error) {
+          console.error("Supabase query error:", error)
+          throw error
+        }
+
+        if (data) {
+          console.log("Successfully fetched from Supabase:", data.length, "records")
           setRecords(data)
           setLoading(false)
           return
         }
+      } else {
+        console.log("Supabase not configured, using localStorage")
+        setConnectionError("Supabase 연결이 설정되지 않았습니다. localStorage를 사용합니다.")
       }
 
       loadFromLocalStorage()
     } catch (error) {
+      console.error("Error fetching records:", error)
+      setConnectionError("데이터베이스 연결 실패. 로컬 저장소를 사용합니다.")
       loadFromLocalStorage()
     } finally {
       setLoading(false)
@@ -50,10 +67,13 @@ export default function Home() {
       const saved = localStorage.getItem("roastingRecords")
       if (saved) {
         const parsed = JSON.parse(saved)
+        console.log("Loaded from localStorage:", parsed.length, "records")
         setRecords(parsed)
+      } else {
+        console.log("No data in localStorage")
       }
     } catch (error) {
-      // Silent fail - empty records is fine
+      console.error("Error loading from localStorage:", error)
     }
   }
 
@@ -84,6 +104,7 @@ export default function Home() {
         localStorage.setItem("beanList", JSON.stringify(DEFAULT_BEANS))
       }
     } catch (error) {
+      console.error("Error loading bean list:", error)
       setBeanList(DEFAULT_BEANS)
     }
   }
@@ -259,6 +280,22 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {connectionError && (
+          <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-xl">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div className="flex-1">
+                <p className="font-semibold text-yellow-900 mb-1">연결 문제</p>
+                <p className="text-sm text-yellow-800">{connectionError}</p>
+                <p className="text-xs text-yellow-700 mt-2">
+                  Vercel 프로젝트 설정에서 환경 변수(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)를
+                  확인하세요.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4 animate-bounce">☕</div>
