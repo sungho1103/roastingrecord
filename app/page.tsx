@@ -18,44 +18,41 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [beanList, setBeanList] = useState<string[]>([])
-  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchRecords()
-    loadBeanList()
+    const init = async () => {
+      await fetchRecords()
+      await loadBeanList()
+    }
+
+    init()
   }, [])
 
   const fetchRecords = async () => {
     setLoading(true)
-    setConnectionError(null)
 
     try {
-      console.log("isSupabaseConfigured:", isSupabaseConfigured)
-
       if (isSupabaseConfigured) {
-        console.log("Attempting to fetch from Supabase...")
+        console.log("[v0] Fetching records from Supabase...")
         const { data, error } = await supabase.from("roasting_records").select("*").order("date", { ascending: false })
 
-        if (error) {
-          console.error("Supabase query error:", error)
-          throw error
-        }
+        console.log("[v0] Supabase response - error:", error)
+        console.log("[v0] Supabase response - data count:", data?.length)
+        console.log("[v0] Supabase response - first record:", data?.[0])
+        console.log("[v0] Supabase response - all data:", data)
+
+        if (error) throw error
 
         if (data) {
-          console.log("Successfully fetched from Supabase:", data.length, "records")
           setRecords(data)
           setLoading(false)
           return
         }
-      } else {
-        console.log("Supabase not configured, using localStorage")
-        setConnectionError("Supabase 연결이 설정되지 않았습니다. localStorage를 사용합니다.")
       }
 
       loadFromLocalStorage()
     } catch (error) {
-      console.error("Error fetching records:", error)
-      setConnectionError("데이터베이스 연결 실패. 로컬 저장소를 사용합니다.")
+      console.log("[v0] Error fetching from Supabase, falling back to localStorage:", error)
       loadFromLocalStorage()
     } finally {
       setLoading(false)
@@ -67,10 +64,7 @@ export default function Home() {
       const saved = localStorage.getItem("roastingRecords")
       if (saved) {
         const parsed = JSON.parse(saved)
-        console.log("Loaded from localStorage:", parsed.length, "records")
         setRecords(parsed)
-      } else {
-        console.log("No data in localStorage")
       }
     } catch (error) {
       console.error("Error loading from localStorage:", error)
@@ -249,6 +243,31 @@ export default function Home() {
     }
   }
 
+  const calculateTotalWeight = () => {
+    console.log("[v0] Calculating total weight from records:", records.length)
+    records.forEach((r, idx) => {
+      console.log(`[v0] Record ${idx} - id: ${r.id}, greenWeight:`, r.greenWeight, typeof r.greenWeight)
+    })
+
+    const total = records.reduce((sum, r) => {
+      const weight = typeof r.greenWeight === "number" ? r.greenWeight : Number.parseFloat(r.greenWeight) || 0
+      return sum + weight
+    }, 0)
+    console.log("[v0] Total weight calculated:", total)
+    return (total / 1000).toFixed(1)
+  }
+
+  const calculateAverageDTR = () => {
+    const recordsWithDTR = records.filter((r) => r.dtr && !Number.isNaN(r.dtr))
+    if (recordsWithDTR.length === 0) return "-"
+
+    const total = recordsWithDTR.reduce((sum, r) => {
+      const dtr = typeof r.dtr === "number" ? r.dtr : Number.parseFloat(r.dtr) || 0
+      return sum + dtr
+    }, 0)
+    return (total / recordsWithDTR.length).toFixed(1)
+  }
+
   return (
     <div className="min-h-screen pb-10">
       <header className="bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 shadow-md border-b-2 border-gray-200">
@@ -280,22 +299,6 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {connectionError && (
-          <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-xl">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">⚠️</span>
-              <div className="flex-1">
-                <p className="font-semibold text-yellow-900 mb-1">연결 문제</p>
-                <p className="text-sm text-yellow-800">{connectionError}</p>
-                <p className="text-xs text-yellow-700 mt-2">
-                  Vercel 프로젝트 설정에서 환경 변수(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)를
-                  확인하세요.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {loading ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4 animate-bounce">☕</div>
@@ -322,20 +325,11 @@ export default function Home() {
                 </div>
                 <div className="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-200">
                   <p className="text-sm font-semibold text-amber-700 mb-1">총 투입량</p>
-                  <p className="text-3xl font-black text-amber-900">
-                    {(records.reduce((sum, r) => sum + r.greenWeight, 0) / 1000).toFixed(1)}kg
-                  </p>
+                  <p className="text-3xl font-black text-amber-900">{calculateTotalWeight()}kg</p>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-200">
                   <p className="text-sm font-semibold text-purple-700 mb-1">평균 DTR</p>
-                  <p className="text-3xl font-black text-purple-900">
-                    {records.filter((r) => r.dtr).length > 0
-                      ? (
-                          records.reduce((sum, r) => sum + (r.dtr || 0), 0) / records.filter((r) => r.dtr).length
-                        ).toFixed(1)
-                      : "-"}
-                    %
-                  </p>
+                  <p className="text-3xl font-black text-purple-900">{calculateAverageDTR()}%</p>
                 </div>
               </div>
             )}

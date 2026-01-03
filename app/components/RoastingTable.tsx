@@ -148,9 +148,14 @@ export default function RoastingTable({ records, onEdit, onDelete }: RoastingTab
                       className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
                       type="button"
                     >
-                      {record.beanName}
+                      {record.beanName || "이름 없음"}
                     </button>
-                    <div className="text-sm text-gray-500 mt-1">{record.greenWeight}g</div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {typeof record.greenWeight === "number"
+                        ? record.greenWeight
+                        : Number.parseFloat(record.greenWeight) || 0}
+                      g
+                    </div>
                   </td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.fan1 || "-"}</td>
                   <td className="px-2 py-2 text-base font-medium text-gray-700">{record.heater || "-"}</td>
